@@ -210,6 +210,20 @@
     "proxy.fixed_account_label": "Fixed Account",
     "proxy.fixed_account_hint": "Fixed mode always follows the current account selected in Account Management.",
     "proxy.fixed_account_current": "Current selected account",
+    "proxy.route_mode_label": "Route Mode",
+    "proxy.route_mode_hint": "Choose whether Codex traffic goes to GPT via 7890 or Ollama via 11434.",
+    "proxy.route_mode_gpt": "GPT",
+    "proxy.route_mode_ollama": "Ollama",
+    "proxy.gpt_upstream_proxy_host_label": "GPT Proxy Host",
+    "proxy.gpt_upstream_proxy_host_hint": "HTTP proxy host used for GPT traffic.",
+    "proxy.gpt_upstream_proxy_port_label": "GPT Proxy Port",
+    "proxy.gpt_upstream_proxy_port_hint": "HTTP proxy port used for GPT traffic.",
+    "proxy.ollama_base_url_label": "Ollama Base URL",
+    "proxy.ollama_base_url_hint": "Local Ollama endpoint used in Ollama mode.",
+    "proxy.request_inspection_enabled_label": "Request Inspection",
+    "proxy.request_inspection_enabled_hint": "Capture masked request summaries for route debugging and later subagent analysis.",
+    "proxy.request_inspection_retention_limit_label": "Inspection Retention",
+    "proxy.request_inspection_retention_limit_hint": "Number of recent inspection records kept in memory and logs.",
     "proxy.default_model_label": "Default Model",
     "proxy.default_model_hint": "Model used when proxy requests do not specify one.",
     "proxy.default_model_auto": "Auto (first available)",
@@ -220,6 +234,11 @@
     "proxy.custom_model_empty": "No custom models added",
     "proxy.custom_model_duplicate": "Model already exists",
     "proxy.custom_model_invalid": "Invalid model ID",
+    "history_shadow.title": "History Visibility",
+    "history_shadow.hint": "Create reversible shadow copies so old OpenAI sessions can appear under the custom provider. Original history files are not modified.",
+    "history_shadow.import": "Import OpenAI History",
+    "history_shadow.undo": "Undo CAS History Import",
+    "history_shadow.result": "Scanned {scanned}, imported/deleted {imported}, skipped {skipped}, failed {failed}.",
     "api.model_select_hint": "Choose from available models or type a custom ID below.",
     "quick.theme_title": "Switch Theme",
     "quick.language_title": "Switch Language",
@@ -804,6 +823,20 @@
     "proxy.fixed_account_label": "固定账号",
     "proxy.fixed_account_hint": "固定模式下自动使用账号管理当前选中账号。",
     "proxy.fixed_account_current": "当前选中账号",
+    "proxy.route_mode_label": "Route Mode",
+    "proxy.route_mode_hint": "Choose whether Codex traffic goes to GPT via 7890 or Ollama via 11434.",
+    "proxy.route_mode_gpt": "GPT",
+    "proxy.route_mode_ollama": "Ollama",
+    "proxy.gpt_upstream_proxy_host_label": "GPT Proxy Host",
+    "proxy.gpt_upstream_proxy_host_hint": "HTTP proxy host used for GPT traffic.",
+    "proxy.gpt_upstream_proxy_port_label": "GPT Proxy Port",
+    "proxy.gpt_upstream_proxy_port_hint": "HTTP proxy port used for GPT traffic.",
+    "proxy.ollama_base_url_label": "Ollama Base URL",
+    "proxy.ollama_base_url_hint": "Local Ollama endpoint used in Ollama mode.",
+    "proxy.request_inspection_enabled_label": "Request Inspection",
+    "proxy.request_inspection_enabled_hint": "Capture masked request summaries for route debugging and later subagent analysis.",
+    "proxy.request_inspection_retention_limit_label": "Inspection Retention",
+    "proxy.request_inspection_retention_limit_hint": "Number of recent inspection records kept in memory and logs.",
     "quick.theme_title": "切换主题",
     "quick.language_title": "切换语言",
     "traffic.title": "流量日志",
@@ -1211,6 +1244,25 @@
     proxyDispatchModeLabel: document.getElementById("proxyDispatchModeLabel"),
     proxyDispatchModeSelect: document.getElementById("proxyDispatchModeSelect"),
     proxyDispatchModeHint: document.getElementById("proxyDispatchModeHint"),
+    proxyFixedAccountGroup: document.getElementById("proxyFixedAccountGroup"),
+    routeModeLabel: document.getElementById("routeModeLabel"),
+    routeModeSelect: document.getElementById("routeModeSelect"),
+    routeModeHint: document.getElementById("routeModeHint"),
+    gptUpstreamProxyHostLabel: document.getElementById("gptUpstreamProxyHostLabel"),
+    gptUpstreamProxyHostInput: document.getElementById("gptUpstreamProxyHostInput"),
+    gptUpstreamProxyHostHint: document.getElementById("gptUpstreamProxyHostHint"),
+    gptUpstreamProxyPortLabel: document.getElementById("gptUpstreamProxyPortLabel"),
+    gptUpstreamProxyPortInput: document.getElementById("gptUpstreamProxyPortInput"),
+    gptUpstreamProxyPortHint: document.getElementById("gptUpstreamProxyPortHint"),
+    ollamaBaseUrlLabel: document.getElementById("ollamaBaseUrlLabel"),
+    ollamaBaseUrlInput: document.getElementById("ollamaBaseUrlInput"),
+    ollamaBaseUrlHint: document.getElementById("ollamaBaseUrlHint"),
+    requestInspectionEnabledLabel: document.getElementById("requestInspectionEnabledLabel"),
+    requestInspectionEnabledToggle: document.getElementById("requestInspectionEnabledToggle"),
+    requestInspectionEnabledHint: document.getElementById("requestInspectionEnabledHint"),
+    requestInspectionRetentionLimitLabel: document.getElementById("requestInspectionRetentionLimitLabel"),
+    requestInspectionRetentionLimitInput: document.getElementById("requestInspectionRetentionLimitInput"),
+    requestInspectionRetentionLimitHint: document.getElementById("requestInspectionRetentionLimitHint"),
     proxyFixedAccountLabel: document.getElementById("proxyFixedAccountLabel"),
     proxyFixedAccountSelect: document.getElementById("proxyFixedAccountSelect"),
     proxyFixedAccountHint: document.getElementById("proxyFixedAccountHint"),
@@ -1222,6 +1274,11 @@
     customModelInput: document.getElementById("customModelInput"),
     customModelAddBtn: document.getElementById("customModelAddBtn"),
     customModelsList: document.getElementById("customModelsList"),
+    historyShadowTitle: document.getElementById("historyShadowTitle"),
+    historyShadowHint: document.getElementById("historyShadowHint"),
+    historyShadowImportBtn: document.getElementById("historyShadowImportBtn"),
+    historyShadowUndoBtn: document.getElementById("historyShadowUndoBtn"),
+    historyShadowStatus: document.getElementById("historyShadowStatus"),
     proxyAutoStartToggle: document.getElementById("proxyAutoStartToggle"),
     proxyAllowLanToggle: document.getElementById("proxyAllowLanToggle"),
     proxyStartBtn: document.getElementById("proxyStartBtn"),
@@ -1451,7 +1508,13 @@
     proxyApiKey: "",
     proxyStealthMode: false,
     proxyDispatchMode: "round_robin",
-    proxyFixedAccount: "",
+    routeMode: "gpt",
+    gptUpstreamProxyHost: "127.0.0.1",
+    gptUpstreamProxyPort: 7890,
+    ollamaBaseUrl: "http://127.0.0.1:11434",
+    requestInspectionEnabled: true,
+    requestInspectionRetentionLimit: 400,
+    proxyFixedAccount: "__follow_current__",
     proxyFixedGroup: "personal",
     proxyDefaultModel: "",
     customModels: [],
@@ -1502,6 +1565,7 @@
   };
 
   const customSelectRegistry = new Map();
+  const PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL = "__follow_current__";
 
   const mediaDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 
@@ -2184,10 +2248,30 @@
       dom.stealthTomlSection.style.display = state.proxyStealthMode ? "" : "none";
     }
     dom.proxyDispatchModeSelect.value = state.proxyDispatchMode || "round_robin";
+    if (dom.routeModeSelect) {
+      dom.routeModeSelect.value = state.routeMode || "gpt";
+    }
+    if (dom.gptUpstreamProxyHostInput) {
+      dom.gptUpstreamProxyHostInput.value = state.gptUpstreamProxyHost || "127.0.0.1";
+    }
+    if (dom.gptUpstreamProxyPortInput) {
+      dom.gptUpstreamProxyPortInput.value = String(Number.isFinite(Number(state.gptUpstreamProxyPort)) ? Number(state.gptUpstreamProxyPort) : 7890);
+    }
+    if (dom.ollamaBaseUrlInput) {
+      dom.ollamaBaseUrlInput.value = state.ollamaBaseUrl || "http://127.0.0.1:11434";
+    }
+    if (dom.requestInspectionEnabledToggle) {
+      dom.requestInspectionEnabledToggle.checked = !!state.requestInspectionEnabled;
+    }
+    if (dom.requestInspectionRetentionLimitInput) {
+      dom.requestInspectionRetentionLimitInput.value = String(Number.isFinite(Number(state.requestInspectionRetentionLimit)) ? Number(state.requestInspectionRetentionLimit) : 400);
+    }
     renderCloudAccountState();
     renderWebDavState();
     renderProxyStatus();
     renderProxyFixedAccountOptions();
+    renderApiModelOptions();
+    renderCustomModels();
     refreshCustomSelects();
     switchSettingsSubTab(state.settingsSubTab);
   }
@@ -2377,6 +2461,18 @@
     dom.apiSubTabTestBtn.textContent = t("api.subtab.test");
     dom.proxyDispatchModeLabel.textContent = t("proxy.dispatch_mode_label");
     dom.proxyDispatchModeHint.textContent = t("proxy.dispatch_mode_hint");
+    if (dom.routeModeLabel) dom.routeModeLabel.textContent = t("proxy.route_mode_label");
+    if (dom.routeModeHint) dom.routeModeHint.textContent = t("proxy.route_mode_hint");
+    if (dom.gptUpstreamProxyHostLabel) dom.gptUpstreamProxyHostLabel.textContent = t("proxy.gpt_upstream_proxy_host_label");
+    if (dom.gptUpstreamProxyHostHint) dom.gptUpstreamProxyHostHint.textContent = t("proxy.gpt_upstream_proxy_host_hint");
+    if (dom.gptUpstreamProxyPortLabel) dom.gptUpstreamProxyPortLabel.textContent = t("proxy.gpt_upstream_proxy_port_label");
+    if (dom.gptUpstreamProxyPortHint) dom.gptUpstreamProxyPortHint.textContent = t("proxy.gpt_upstream_proxy_port_hint");
+    if (dom.ollamaBaseUrlLabel) dom.ollamaBaseUrlLabel.textContent = t("proxy.ollama_base_url_label");
+    if (dom.ollamaBaseUrlHint) dom.ollamaBaseUrlHint.textContent = t("proxy.ollama_base_url_hint");
+    if (dom.requestInspectionEnabledLabel) dom.requestInspectionEnabledLabel.textContent = t("proxy.request_inspection_enabled_label");
+    if (dom.requestInspectionEnabledHint) dom.requestInspectionEnabledHint.textContent = t("proxy.request_inspection_enabled_hint");
+    if (dom.requestInspectionRetentionLimitLabel) dom.requestInspectionRetentionLimitLabel.textContent = t("proxy.request_inspection_retention_limit_label");
+    if (dom.requestInspectionRetentionLimitHint) dom.requestInspectionRetentionLimitHint.textContent = t("proxy.request_inspection_retention_limit_hint");
     if (dom.proxyFixedAccountLabel) dom.proxyFixedAccountLabel.textContent = t("proxy.fixed_account_label");
     if (dom.proxyFixedAccountHint) dom.proxyFixedAccountHint.textContent = t("proxy.fixed_account_hint");
     if (dom.proxyDefaultModelLabel) dom.proxyDefaultModelLabel.textContent = t("proxy.default_model_label");
@@ -2385,6 +2481,10 @@
     if (dom.customModelsHint) dom.customModelsHint.textContent = t("proxy.custom_models_hint");
     if (dom.customModelAddBtn) dom.customModelAddBtn.textContent = "+ " + t("proxy.custom_model_add");
     if (dom.customModelInput) dom.customModelInput.placeholder = t("proxy.custom_model_placeholder");
+    if (dom.historyShadowTitle) dom.historyShadowTitle.textContent = t("history_shadow.title");
+    if (dom.historyShadowHint) dom.historyShadowHint.textContent = t("history_shadow.hint");
+    if (dom.historyShadowImportBtn) dom.historyShadowImportBtn.textContent = t("history_shadow.import");
+    if (dom.historyShadowUndoBtn) dom.historyShadowUndoBtn.textContent = t("history_shadow.undo");
     if (dom.apiModelHint) dom.apiModelHint.textContent = t("api.model_select_hint");
     Array.from(dom.proxyDispatchModeSelect.options).forEach((opt) => {
       if (opt.value === "round_robin") opt.textContent = t("proxy.dispatch_mode_round_robin");
@@ -2392,6 +2492,13 @@
       if (opt.value === "fixed") opt.textContent = t("proxy.dispatch_mode_fixed");
     });
     dom.proxyDispatchModeSelect.value = state.proxyDispatchMode || "round_robin";
+    if (dom.routeModeSelect) {
+      Array.from(dom.routeModeSelect.options).forEach((opt) => {
+        if (opt.value === "gpt") opt.textContent = t("proxy.route_mode_gpt");
+        if (opt.value === "ollama") opt.textContent = t("proxy.route_mode_ollama");
+      });
+      dom.routeModeSelect.value = state.routeMode || "gpt";
+    }
     dom.proxyStartBtn.textContent = "\u25b6\ufe0f " + t("proxy.start");
     dom.proxyStopBtn.textContent = "\u23f9\ufe0f " + t("proxy.stop");
     dom.trafficTitle.textContent = t("traffic.title");
@@ -2522,7 +2629,10 @@
           it?.path,
           it?.method,
           it?.protocol,
-          it?.status
+          it?.status,
+          it?.routeMode,
+          it?.upstream,
+          it?.inspectionSummary
         ].map((x) => String(x || "").toLowerCase()).join(" ");
         return text.includes(keyword);
       });
@@ -2550,6 +2660,9 @@
       const protocol = String(it?.protocol || "-");
       const account = String(it?.account || "-");
       const path = String(it?.path || "-");
+      const routeMode = String(it?.routeMode || "-");
+      const upstream = String(it?.upstream || "-");
+      const inspectionSummary = String(it?.inspectionSummary || "");
       const tokenValue = Number(it?.totalTokens);
       const tokenText = Number.isFinite(tokenValue) && tokenValue >= 0
         ? formatTokenNumber(tokenValue)
@@ -2561,7 +2674,11 @@
         <tr>
           <td>${escapeHtml(statusText)}</td>
           <td>${escapeHtml(method)}</td>
-          <td>${escapeHtml(model)}</td>
+          <td>
+            <div>${escapeHtml(model)}</div>
+            <div class="traffic-subline">${escapeHtml(routeMode)} -> ${escapeHtml(upstream)}</div>
+            ${inspectionSummary ? `<div class="traffic-subline">${escapeHtml(inspectionSummary)}</div>` : ""}
+          </td>
           <td>${escapeHtml(protocol)}</td>
           <td title="${escapeHtml(account)}">${escapeHtml(account)}</td>
           <td title="${escapeHtml(path)}">${escapeHtml(path)}</td>
@@ -2756,14 +2873,41 @@
       : t("proxy.allow_lan_hint_off");
   }
 
+  function getCurrentProxyAccount() {
+    if (!Array.isArray(state.accounts) || state.accounts.length === 0) return null;
+    const current = state.accounts.find((x) => x && x.isCurrent && x.name);
+    if (current) {
+      return {
+        account: String(current.name || ""),
+        group: normalizeGroupValue(current.group)
+      };
+    }
+    const first = state.accounts.find((x) => x && x.name);
+    if (!first) return null;
+    return {
+      account: String(first.name || ""),
+      group: normalizeGroupValue(first.group)
+    };
+  }
+
+  function normalizeSavedProxyFixedAccount(_value) {
+    return PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL;
+  }
+
   function renderProxyFixedAccountOptions() {
     if (!dom.proxyFixedAccountSelect) return;
+    if (dom.proxyFixedAccountGroup) {
+      dom.proxyFixedAccountGroup.style.display = state.proxyDispatchMode === "fixed" ? "" : "none";
+    }
     dom.proxyFixedAccountSelect.innerHTML = "";
+    const current = getCurrentProxyAccount();
     const currentOpt = document.createElement("option");
-    currentOpt.value = "current::";
-    currentOpt.textContent = t("proxy.fixed_account_current");
+    currentOpt.value = PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL;
+    currentOpt.textContent = current && current.account
+      ? `${t("proxy.fixed_account_current")} (${current.account})`
+      : t("proxy.fixed_account_current");
     dom.proxyFixedAccountSelect.appendChild(currentOpt);
-    dom.proxyFixedAccountSelect.value = "current::";
+    dom.proxyFixedAccountSelect.value = currentOpt.value;
     dom.proxyFixedAccountSelect.disabled = true;
   }
 
@@ -3524,6 +3668,10 @@
   function buildConfigPayload() {
     const cloudAccountPassword = String(dom.cloudAccountPasswordInput?.value || "").trim();
     const webdavPassword = String(dom.webdavPasswordInput?.value || "").trim();
+    const savedFixedAccount = normalizeSavedProxyFixedAccount(state.proxyFixedAccount);
+    const savedFixedGroup = savedFixedAccount === PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL
+      ? "personal"
+      : normalizeGroupValue(state.proxyFixedGroup || "personal");
     return {
       language: state.currentLanguage,
       ideExe: state.currentIdeExe,
@@ -3545,8 +3693,14 @@
       proxyApiKey: String(dom.proxyApiKeyInput.value || "").trim(),
       proxyStealthMode: !!state.proxyStealthMode,
       proxyDispatchMode: String(state.proxyDispatchMode || "round_robin"),
-      proxyFixedAccount: "",
-      proxyFixedGroup: "personal",
+      routeMode: String(state.routeMode || "gpt"),
+      gptUpstreamProxyHost: String(dom.gptUpstreamProxyHostInput?.value || "127.0.0.1").trim(),
+      gptUpstreamProxyPort: Math.max(1, Math.min(65535, Number(dom.gptUpstreamProxyPortInput?.value || 7890))),
+      ollamaBaseUrl: String(dom.ollamaBaseUrlInput?.value || "http://127.0.0.1:11434").trim(),
+      requestInspectionEnabled: !!state.requestInspectionEnabled,
+      requestInspectionRetentionLimit: Math.max(50, Math.min(2000, Number(dom.requestInspectionRetentionLimitInput?.value || 400))),
+      proxyFixedAccount: savedFixedAccount,
+      proxyFixedGroup: savedFixedGroup,
       proxyDefaultModel: String(state.proxyDefaultModel || ""),
       customModels: Array.isArray(state.customModels) ? state.customModels : [],
       stealthTomlExtra: String(state.stealthTomlExtra || ""),
@@ -3592,13 +3746,25 @@
     const msgAutoRefreshAllMinutes = clampRefreshMinutes(msg.autoRefreshAllMinutes, 15);
     const msgAutoRefreshCurrentMinutes = clampRefreshMinutes(msg.autoRefreshCurrentMinutes, 5);
     const msgTheme = normalizeThemeMode(msg.theme || "auto");
+    const msgProxyPort = Math.max(1, Math.min(65535, Number(msg.proxyPort || 8045)));
+    const msgProxyTimeoutSec = Math.max(30, Math.min(7200, Number(msg.proxyTimeoutSec || 120)));
     const msgProxyAllowLan = msg.proxyAllowLan === true || msg.proxyAllowLan === "true";
     const msgProxyAutoStart = msg.proxyAutoStart === true || msg.proxyAutoStart === "true";
     const msgProxyApiKey = String(msg.proxyApiKey || "").trim();
     const msgProxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
     const msgProxyDispatchMode = String(msg.proxyDispatchMode || "round_robin");
-    const msgProxyFixedAccount = String(msg.proxyFixedAccount || "");
+    const msgRouteMode = String(msg.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+    const msgGptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
+    const msgGptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || 7890)));
+    const msgOllamaBaseUrl = String(msg.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+    const msgRequestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
+    const msgRequestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || 400)));
+    const msgProxyFixedAccount = normalizeSavedProxyFixedAccount(msg.proxyFixedAccount);
     const msgProxyFixedGroup = String(msg.proxyFixedGroup || "personal");
+    const msgProxyDefaultModel = String(msg.proxyDefaultModel || "");
+    const msgCustomModels = Array.isArray(msg.customModels) ? msg.customModels.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const pendingCustomModels = Array.isArray(pending.customModels) ? pending.customModels.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const msgStealthTomlExtra = String(msg.stealthTomlExtra || "");
     const msgCloudAccountUrl = String(msg.cloudAccountUrl || "").trim();
     const msgCloudAccountAutoDownload = msg.cloudAccountAutoDownload === true || msg.cloudAccountAutoDownload === "true";
     const msgCloudAccountIntervalMinutes = clampWebDavSyncMinutes(msg.cloudAccountIntervalMinutes, 60);
@@ -3623,13 +3789,25 @@
       && msgAutoRefreshAllMinutes === pending.autoRefreshAllMinutes
       && msgAutoRefreshCurrentMinutes === pending.autoRefreshCurrentMinutes
       && msgTheme === pending.theme
+      && msgProxyPort === Math.max(1, Math.min(65535, Number(pending.proxyPort || 8045)))
+      && msgProxyTimeoutSec === Math.max(30, Math.min(7200, Number(pending.proxyTimeoutSec || 120)))
       && msgProxyAllowLan === pending.proxyAllowLan
       && msgProxyAutoStart === pending.proxyAutoStart
       && msgProxyApiKey === String(pending.proxyApiKey || "").trim()
       && msgProxyStealthMode === !!pending.proxyStealthMode
       && msgProxyDispatchMode === String(pending.proxyDispatchMode || "round_robin")
-      && msgProxyFixedAccount === String(pending.proxyFixedAccount || "")
+      && msgRouteMode === String(pending.routeMode || "gpt")
+      && msgGptUpstreamProxyHost === String(pending.gptUpstreamProxyHost || "127.0.0.1").trim()
+      && msgGptUpstreamProxyPort === Math.max(1, Math.min(65535, Number(pending.gptUpstreamProxyPort || 7890)))
+      && msgOllamaBaseUrl === String(pending.ollamaBaseUrl || "http://127.0.0.1:11434").trim()
+      && msgRequestInspectionEnabled === !!pending.requestInspectionEnabled
+      && msgRequestInspectionRetentionLimit === Math.max(50, Math.min(2000, Number(pending.requestInspectionRetentionLimit || 400)))
+      && msgProxyFixedAccount === normalizeSavedProxyFixedAccount(pending.proxyFixedAccount)
       && msgProxyFixedGroup === String(pending.proxyFixedGroup || "personal")
+      && msgProxyDefaultModel === String(pending.proxyDefaultModel || "")
+      && msgCustomModels.length === pendingCustomModels.length
+      && msgCustomModels.every((value, index) => value === pendingCustomModels[index])
+      && msgStealthTomlExtra === String(pending.stealthTomlExtra || "")
       && msgCloudAccountUrl === String(pending.cloudAccountUrl || "").trim()
       && msgCloudAccountAutoDownload === !!pending.cloudAccountAutoDownload
       && msgCloudAccountIntervalMinutes === clampWebDavSyncMinutes(pending.cloudAccountIntervalMinutes, 60)
@@ -3899,13 +4077,27 @@
         timeoutSec,
         allowLan: !!state.proxyAllowLan,
         dispatchMode: String(state.proxyDispatchMode || "round_robin"),
-        fixedAccount: "",
-        fixedGroup: "personal"
+        fixedAccount: normalizeSavedProxyFixedAccount(state.proxyFixedAccount),
+        fixedGroup: normalizeSavedProxyFixedAccount(state.proxyFixedAccount) === PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL
+          ? "personal"
+          : normalizeGroupValue(state.proxyFixedGroup || "personal")
       });
     });
     dom.proxyStopBtn.addEventListener("click", () => {
       post("stop_proxy_service");
     });
+    if (dom.historyShadowImportBtn) {
+      dom.historyShadowImportBtn.addEventListener("click", () => {
+        if (dom.historyShadowStatus) dom.historyShadowStatus.textContent = "";
+        post("history_shadow_import");
+      });
+    }
+    if (dom.historyShadowUndoBtn) {
+      dom.historyShadowUndoBtn.addEventListener("click", () => {
+        if (dom.historyShadowStatus) dom.historyShadowStatus.textContent = "";
+        post("history_shadow_undo");
+      });
+    }
     if (dom.trafficRefreshBtn) {
       dom.trafficRefreshBtn.addEventListener("click", () => requestTrafficLogs(true));
     }
@@ -3985,6 +4177,50 @@
       renderProxyFixedAccountOptions();
       queueSaveConfig();
     });
+    if (dom.proxyFixedAccountSelect) {
+      dom.proxyFixedAccountSelect.addEventListener("change", () => {
+        const raw = String(dom.proxyFixedAccountSelect.value || "");
+        if (raw === PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL) {
+          state.proxyFixedAccount = PROXY_FIXED_ACCOUNT_CURRENT_SENTINEL;
+          state.proxyFixedGroup = "personal";
+          queueSaveConfig();
+          return;
+        }
+        const split = raw.indexOf("::");
+        if (split >= 0) {
+          state.proxyFixedGroup = normalizeGroupValue(raw.slice(0, split));
+          state.proxyFixedAccount = raw.slice(split + 2);
+        } else {
+          state.proxyFixedGroup = "personal";
+          state.proxyFixedAccount = raw;
+        }
+        queueSaveConfig();
+      });
+    }
+    if (dom.routeModeSelect) {
+      dom.routeModeSelect.addEventListener("change", () => {
+        state.routeMode = String(dom.routeModeSelect.value || "gpt");
+        queueSaveConfig();
+      });
+    }
+    if (dom.gptUpstreamProxyHostInput) {
+      dom.gptUpstreamProxyHostInput.addEventListener("change", queueSaveConfig);
+    }
+    if (dom.gptUpstreamProxyPortInput) {
+      dom.gptUpstreamProxyPortInput.addEventListener("change", queueSaveConfig);
+    }
+    if (dom.ollamaBaseUrlInput) {
+      dom.ollamaBaseUrlInput.addEventListener("change", queueSaveConfig);
+    }
+    if (dom.requestInspectionEnabledToggle) {
+      dom.requestInspectionEnabledToggle.addEventListener("change", () => {
+        state.requestInspectionEnabled = !!dom.requestInspectionEnabledToggle.checked;
+        queueSaveConfig();
+      });
+    }
+    if (dom.requestInspectionRetentionLimitInput) {
+      dom.requestInspectionRetentionLimitInput.addEventListener("change", queueSaveConfig);
+    }
     dom.proxyStealthModeToggle.addEventListener("change", () => {
       state.proxyStealthMode = dom.proxyStealthModeToggle.checked;
       if (dom.stealthTomlSection) {
@@ -4641,6 +4877,18 @@
         return;
       }
 
+      if (msg && typeof msg === "object" && msg.type === "history_shadow_result") {
+        const scanned = Number(msg.scanned || 0);
+        const imported = Number(msg.imported || 0);
+        const skipped = Number(msg.skipped || 0);
+        const failed = Number(msg.failed || 0);
+        if (dom.historyShadowStatus) {
+          dom.historyShadowStatus.textContent = t("history_shadow.result", { scanned, imported, skipped, failed });
+        }
+        showToast(t("history_shadow.result", { scanned, imported, skipped, failed }), failed > 0 ? "warning" : "success");
+        return;
+      }
+
       if (msg && typeof msg === "object" && msg.type === "proxy_status") {
         state.proxyRunning = msg.running === true || msg.running === "true";
         const port = Number(msg.port);
@@ -4664,7 +4912,7 @@
           dom.proxyDispatchModeSelect.value = state.proxyDispatchMode;
         }
         if (typeof msg.fixedAccount === "string") {
-          state.proxyFixedAccount = msg.fixedAccount;
+          state.proxyFixedAccount = normalizeSavedProxyFixedAccount(msg.fixedAccount);
         }
         if (typeof msg.fixedGroup === "string") {
           state.proxyFixedGroup = msg.fixedGroup || "personal";
@@ -4988,7 +5236,13 @@
           state.proxyApiKey = typeof msg.proxyApiKey === "string" ? msg.proxyApiKey : "";
           state.proxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
           state.proxyDispatchMode = String(msg.proxyDispatchMode || "round_robin");
-          state.proxyFixedAccount = String(msg.proxyFixedAccount || "");
+          state.routeMode = String(msg.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+          state.gptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
+          state.gptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || 7890)));
+          state.ollamaBaseUrl = String(msg.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+          state.requestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
+          state.requestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || 400)));
+          state.proxyFixedAccount = normalizeSavedProxyFixedAccount(msg.proxyFixedAccount);
           state.proxyFixedGroup = String(msg.proxyFixedGroup || "personal");
           state.proxyDefaultModel = String(msg.proxyDefaultModel || "");
           state.customModels = Array.isArray(msg.customModels) ? msg.customModels.map((x) => String(x || "").trim()).filter(Boolean) : [];
@@ -5058,8 +5312,20 @@
           state.proxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
           if (typeof msg.stealthTomlExtra === "string") state.stealthTomlExtra = msg.stealthTomlExtra;
           state.proxyDispatchMode = String(msg.proxyDispatchMode || state.proxyDispatchMode || "round_robin");
-          state.proxyFixedAccount = String(msg.proxyFixedAccount || state.proxyFixedAccount || "");
+          state.routeMode = String(msg.routeMode || state.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+          state.gptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || state.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
+          state.gptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || state.gptUpstreamProxyPort || 7890)));
+          state.ollamaBaseUrl = String(msg.ollamaBaseUrl || state.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+          state.requestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
+          state.requestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || state.requestInspectionRetentionLimit || 400)));
+          state.proxyFixedAccount = normalizeSavedProxyFixedAccount(
+            Object.prototype.hasOwnProperty.call(msg, "proxyFixedAccount")
+              ? msg.proxyFixedAccount
+              : state.proxyFixedAccount
+          );
           state.proxyFixedGroup = String(msg.proxyFixedGroup || state.proxyFixedGroup || "personal");
+          state.proxyDefaultModel = String(msg.proxyDefaultModel || state.proxyDefaultModel || "");
+          state.customModels = Array.isArray(msg.customModels) ? msg.customModels.map((x) => String(x || "").trim()).filter(Boolean) : (Array.isArray(state.customModels) ? state.customModels : []);
           state.cloudAccountUrl = String(msg.cloudAccountUrl || state.cloudAccountUrl || "");
           state.cloudAccountPasswordConfigured = msg.cloudAccountPasswordConfigured === true || msg.cloudAccountPasswordConfigured === "true";
           state.cloudAccountPasswordClear = false;

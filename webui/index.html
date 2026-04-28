@@ -299,6 +299,58 @@
                     <div class="settings-sub-note" id="proxyDispatchModeHint">决定反向代理请求使用哪个账号。</div>
                   </div>
 
+                  <div class="settings-group proxy-item" id="proxyFixedAccountGroup">
+                    <div class="settings-label" id="proxyFixedAccountLabel">固定账号</div>
+                    <select class="settings-number-input proxy-input" id="proxyFixedAccountSelect">
+                      <option value="__follow_current__">当前选中账号</option>
+                    </select>
+                    <div class="settings-sub-note" id="proxyFixedAccountHint">固定模式下自动使用账号管理当前选中账号。</div>
+                  </div>
+
+                  <div class="settings-group proxy-item">
+                    <div class="settings-label" id="routeModeLabel">Route Mode</div>
+                    <select class="settings-number-input proxy-input" id="routeModeSelect">
+                      <option value="gpt">GPT</option>
+                      <option value="ollama">Ollama</option>
+                    </select>
+                    <div class="settings-sub-note" id="routeModeHint">Choose whether Codex traffic goes to GPT via 7890 or Ollama via 11434.</div>
+                  </div>
+
+                  <div class="settings-group proxy-item">
+                    <div class="settings-label" id="gptUpstreamProxyHostLabel">GPT Proxy Host</div>
+                    <input class="settings-number-input proxy-input" id="gptUpstreamProxyHostInput" type="text" value="127.0.0.1" />
+                    <div class="settings-sub-note" id="gptUpstreamProxyHostHint">HTTP proxy host used for GPT traffic.</div>
+                  </div>
+
+                  <div class="settings-group proxy-item">
+                    <div class="settings-label" id="gptUpstreamProxyPortLabel">GPT Proxy Port</div>
+                    <input class="settings-number-input proxy-input" id="gptUpstreamProxyPortInput" type="number" min="1" max="65535" value="7890" />
+                    <div class="settings-sub-note" id="gptUpstreamProxyPortHint">HTTP proxy port used for GPT traffic.</div>
+                  </div>
+
+                  <div class="settings-group proxy-item">
+                    <div class="settings-label" id="ollamaBaseUrlLabel">Ollama Base URL</div>
+                    <input class="settings-number-input proxy-input" id="ollamaBaseUrlInput" type="text" value="http://127.0.0.1:11434" />
+                    <div class="settings-sub-note" id="ollamaBaseUrlHint">Local Ollama endpoint used in Ollama mode.</div>
+                  </div>
+
+                  <div class="settings-group proxy-item proxy-item--toggle">
+                    <div class="settings-label" id="requestInspectionEnabledLabel">Request Inspection</div>
+                    <div class="toggle-row">
+                      <label class="switch-toggle" for="requestInspectionEnabledToggle">
+                        <input type="checkbox" id="requestInspectionEnabledToggle" />
+                        <span class="switch-slider"></span>
+                      </label>
+                    </div>
+                    <div class="settings-sub-note" id="requestInspectionEnabledHint">Capture masked request summaries for route debugging and later subagent analysis.</div>
+                  </div>
+
+                  <div class="settings-group proxy-item">
+                    <div class="settings-label" id="requestInspectionRetentionLimitLabel">Inspection Retention</div>
+                    <input class="settings-number-input proxy-input" id="requestInspectionRetentionLimitInput" type="number" min="50" max="2000" value="400" />
+                    <div class="settings-sub-note" id="requestInspectionRetentionLimitHint">Number of recent inspection records kept in memory and logs.</div>
+                  </div>
+
 
                   <div class="settings-group proxy-item proxy-item--full">
                     <div class="settings-label" id="proxyApiKeyLabel">API 密钥</div>
@@ -326,6 +378,16 @@
                     <button class="tool-btn primary" id="customModelAddBtn">+</button>
                   </div>
                   <div class="custom-models-list" id="customModelsList"></div>
+                </div>
+
+                <div class="history-shadow-card">
+                  <div class="settings-label" id="historyShadowTitle">History Visibility</div>
+                  <div class="settings-sub-note" id="historyShadowHint">Create reversible shadow copies so old OpenAI sessions can appear under the custom provider. Original history files are not modified.</div>
+                  <div class="history-shadow-actions">
+                    <button class="tool-btn" id="historyShadowImportBtn">Import OpenAI History</button>
+                    <button class="tool-btn danger" id="historyShadowUndoBtn">Undo CAS History Import</button>
+                  </div>
+                  <div class="settings-sub-note" id="historyShadowStatus"></div>
                 </div>
               </div>
             </div>

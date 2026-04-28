@@ -3,9 +3,14 @@
 
 #include "app_version.h"
 #include "file_utils.h"
+#include "history_shadow_import.h"
 #include "preset_models.h"
 #include "main_window.h"
+#include "proxy_route_state.h"
+#include "proxy_upstream.h"
+#include "request_inspector.h"
 #include "resource.h"
+#include "route_settings.h"
 #include "update_checker.h"
 
 #include <algorithm>
@@ -94,6 +99,7 @@ namespace
   std::wstring BuildProxyStatusJson();
   std::wstring GenerateProxyApiKey();
   bool LoadConfig(AppConfig &out);
+  bool SaveConfig(const AppConfig &cfg);
   bool SaveProtectedWideText(const fs::path &file, const std::wstring &text,
                              std::wstring &error);
   bool LoadProtectedWideText(const fs::path &file, std::wstring &text,
@@ -126,6 +132,8 @@ namespace
   constexpr UINT kTrayCmdOpenWindow = 32001;
   constexpr UINT kTrayCmdMinimizeToTray = 32002;
   constexpr UINT kTrayCmdExitApp = 32003;
+  constexpr UINT kTrayCmdRouteGpt = 32004;
+  constexpr UINT kTrayCmdRouteOllama = 32005;
   constexpr UINT kTrayCmdSwitchBase = 32100;
   constexpr UINT kTrayCmdSwitchMax = 32299;
   constexpr DWORD kRefreshAllThrottleMs = 100;
@@ -644,6 +652,12 @@ namespace
     bool proxyStealthMode = false;
     std::wstring proxyApiKey;
     std::wstring proxyDispatchMode = L"round_robin";
+    std::wstring routeMode = L"gpt";
+    std::wstring gptUpstreamProxyHost = L"127.0.0.1";
+    int gptUpstreamProxyPort = 7890;
+    std::wstring ollamaBaseUrl = L"http://127.0.0.1:11434";
+    bool requestInspectionEnabled = true;
+    int requestInspectionRetentionLimit = 400;
     std::wstring proxyFixedAccount;
     std::wstring proxyFixedGroup = L"personal";
     std::wstring lastSwitchedAccount;
@@ -668,6 +682,50 @@ namespace
     std::vector<std::wstring> customModels;
     std::wstring stealthTomlExtra;
   };
+
+  cas::RouteStateSnapshot BuildRouteStateSnapshot(const AppConfig &cfg)
+  {
+    cas::RouteStateSnapshot snapshot;
+    snapshot.routeMode = cas::ParseRouteMode(cfg.routeMode);
+    snapshot.gptProxyHost = cfg.gptUpstreamProxyHost;
+    snapshot.gptProxyPort = cfg.gptUpstreamProxyPort;
+    snapshot.ollamaBaseUrl = cfg.ollamaBaseUrl;
+    snapshot.requestInspectionEnabled = cfg.requestInspectionEnabled;
+    snapshot.requestInspectionRetentionLimit =
+        cfg.requestInspectionRetentionLimit;
+    return snapshot;
+  }
+
+  void SyncRouteStateFromConfig(const AppConfig &cfg)
+  {
+    cas::InitializeRouteState(BuildRouteStateSnapshot(cfg));
+  }
+
+  HINTERNET OpenCodexProxySession(const std::wstring &userAgent)
+  {
+    const cas::RouteStateSnapshot routeState = cas::GetRouteStateSnapshot();
+    const std::wstring namedProxy = cas::BuildNamedProxyString(routeState);
+    return WinHttpOpen(userAgent.c_str(), WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+                       namedProxy.c_str(), WINHTTP_NO_PROXY_BYPASS, 0);
+  }
+
+  bool PersistRouteModeSelection(cas::RouteMode mode)
+  {
+    AppConfig cfg;
+    if (!LoadConfig(cfg))
+    {
+      return false;
+    }
+
+    cfg.routeMode = cas::RouteModeToConfigValue(mode);
+    if (!SaveConfig(cfg))
+    {
+      return false;
+    }
+
+    SyncRouteStateFromConfig(cfg);
+    return true;
+  }
 
   std::wstring NormalizeCloseWindowBehavior(const std::wstring &value)
   {
@@ -2788,6 +2846,17 @@ namespace
     const std::wstring proxyApiKey = ExtractJsonField(json, L"proxyApiKey");
     const std::wstring proxyDispatchMode =
         ExtractJsonField(json, L"proxyDispatchMode");
+    const std::wstring routeMode = ExtractJsonField(json, L"routeMode");
+    const std::wstring gptUpstreamProxyHost =
+        ExtractJsonField(json, L"gptUpstreamProxyHost");
+    const int gptUpstreamProxyPort =
+        ExtractJsonIntField(json, L"gptUpstreamProxyPort", 7890);
+    const std::wstring ollamaBaseUrl =
+        ExtractJsonField(json, L"ollamaBaseUrl");
+    const bool requestInspectionEnabled =
+        ExtractJsonBoolField(json, L"requestInspectionEnabled", true);
+    const int requestInspectionRetentionLimit = ExtractJsonIntField(
+        json, L"requestInspectionRetentionLimit", 400);
     const std::wstring proxyFixedAccount =
         ExtractJsonField(json, L"proxyFixedAccount");
     const std::wstring proxyFixedGroup =
@@ -2895,6 +2964,24 @@ namespace
         out.proxyDispatchMode = modeLower;
       }
     }
+    {
+      cas::RouteSettings routeSettings;
+      routeSettings.routeMode = cas::ParseRouteMode(routeMode);
+      routeSettings.gptProxyHost = gptUpstreamProxyHost;
+      routeSettings.gptProxyPort = gptUpstreamProxyPort;
+      routeSettings.ollamaBaseUrl = ollamaBaseUrl;
+      routeSettings.requestInspectionEnabled = requestInspectionEnabled;
+      routeSettings.requestInspectionRetentionLimit =
+          requestInspectionRetentionLimit;
+      routeSettings = cas::NormalizeRouteSettings(routeSettings);
+      out.routeMode = cas::RouteModeToConfigValue(routeSettings.routeMode);
+      out.gptUpstreamProxyHost = routeSettings.gptProxyHost;
+      out.gptUpstreamProxyPort = routeSettings.gptProxyPort;
+      out.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+      out.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
+      out.requestInspectionRetentionLimit =
+          routeSettings.requestInspectionRetentionLimit;
+    }
     out.proxyFixedAccount = proxyFixedAccount;
     out.proxyFixedGroup = NormalizeGroup(proxyFixedGroup);
     out.lastSwitchedAccount = lastAccount;
@@ -2969,6 +3056,24 @@ namespace
       {
         tmp.proxyDispatchMode = L"round_robin";
       }
+      {
+        cas::RouteSettings routeSettings;
+        routeSettings.routeMode = cas::ParseRouteMode(tmp.routeMode);
+        routeSettings.gptProxyHost = tmp.gptUpstreamProxyHost;
+        routeSettings.gptProxyPort = tmp.gptUpstreamProxyPort;
+        routeSettings.ollamaBaseUrl = tmp.ollamaBaseUrl;
+        routeSettings.requestInspectionEnabled = tmp.requestInspectionEnabled;
+        routeSettings.requestInspectionRetentionLimit =
+            tmp.requestInspectionRetentionLimit;
+        routeSettings = cas::NormalizeRouteSettings(routeSettings);
+        tmp.routeMode = cas::RouteModeToConfigValue(routeSettings.routeMode);
+        tmp.gptUpstreamProxyHost = routeSettings.gptProxyHost;
+        tmp.gptUpstreamProxyPort = routeSettings.gptProxyPort;
+        tmp.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+        tmp.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
+        tmp.requestInspectionRetentionLimit =
+            routeSettings.requestInspectionRetentionLimit;
+      }
       tmp.proxyFixedGroup = NormalizeGroup(tmp.proxyFixedGroup);
       tmp.lastSwitchedGroup = NormalizeGroup(tmp.lastSwitchedGroup);
       tmp.cloudAccountIntervalMinutes = ClampWebDavSyncMinutes(
@@ -3025,6 +3130,17 @@ namespace
        << L"\",\n";
     ss << L"  \"proxyDispatchMode\": \""
        << EscapeJsonString(cfg.proxyDispatchMode) << L"\",\n";
+    ss << L"  \"routeMode\": \"" << EscapeJsonString(cfg.routeMode) << L"\",\n";
+    ss << L"  \"gptUpstreamProxyHost\": \""
+       << EscapeJsonString(cfg.gptUpstreamProxyHost) << L"\",\n";
+    ss << L"  \"gptUpstreamProxyPort\": " << cfg.gptUpstreamProxyPort
+       << L",\n";
+    ss << L"  \"ollamaBaseUrl\": \"" << EscapeJsonString(cfg.ollamaBaseUrl)
+       << L"\",\n";
+    ss << L"  \"requestInspectionEnabled\": "
+       << (cfg.requestInspectionEnabled ? L"true" : L"false") << L",\n";
+    ss << L"  \"requestInspectionRetentionLimit\": "
+       << cfg.requestInspectionRetentionLimit << L",\n";
     ss << L"  \"proxyFixedAccount\": \""
        << EscapeJsonString(cfg.proxyFixedAccount) << L"\",\n";
     ss << L"  \"proxyFixedGroup\": \"" << EscapeJsonString(cfg.proxyFixedGroup)
@@ -9707,6 +9823,9 @@ namespace
     std::wstring protocol;
     std::wstring account;
     std::wstring path;
+    std::wstring routeMode;
+    std::wstring upstream;
+    std::wstring inspectionSummary;
     int inputTokens = -1;
     int outputTokens = -1;
     int totalTokens = -1;
@@ -9760,6 +9879,10 @@ namespace
       e.protocol = UnescapeJsonString(ExtractJsonField(json, L"protocol"));
       e.account = UnescapeJsonString(ExtractJsonField(json, L"account"));
       e.path = UnescapeJsonString(ExtractJsonField(json, L"path"));
+      e.routeMode = UnescapeJsonString(ExtractJsonField(json, L"routeMode"));
+      e.upstream = UnescapeJsonString(ExtractJsonField(json, L"upstream"));
+      e.inspectionSummary =
+          UnescapeJsonString(ExtractJsonField(json, L"inspectionSummary"));
       e.inputTokens = ExtractJsonIntField(json, L"inputTokens", -1);
       e.outputTokens = ExtractJsonIntField(json, L"outputTokens", -1);
       e.totalTokens = ExtractJsonIntField(json, L"totalTokens", -1);
@@ -9907,6 +10030,110 @@ namespace
     return buf;
   }
 
+  std::wstring BuildOllamaUpstreamLabel(const std::wstring &baseUrl)
+  {
+    std::wstring trimmed = baseUrl;
+    const size_t schemePos = trimmed.find(L"://");
+    if (schemePos != std::wstring::npos)
+    {
+      trimmed = trimmed.substr(schemePos + 3);
+    }
+    const size_t slashPos = trimmed.find(L'/');
+    if (slashPos != std::wstring::npos)
+    {
+      trimmed = trimmed.substr(0, slashPos);
+    }
+    return trimmed.empty() ? L"127.0.0.1:11434" : trimmed;
+  }
+
+  std::wstring BuildRouteUpstreamLabel(const cas::RouteStateSnapshot &routeState)
+  {
+    if (routeState.routeMode == cas::RouteMode::Ollama)
+    {
+      return BuildOllamaUpstreamLabel(routeState.ollamaBaseUrl);
+    }
+    return cas::BuildNamedProxyString(routeState);
+  }
+
+  std::wstring JoinSummaryParts(const std::vector<std::wstring> &parts)
+  {
+    std::wstring joined;
+    for (const auto &part : parts)
+    {
+      if (part.empty())
+      {
+        continue;
+      }
+      if (!joined.empty())
+      {
+        joined += L"; ";
+      }
+      joined += part;
+    }
+    return joined;
+  }
+
+  std::wstring BuildInspectionSummary(
+      const cas::RouteStateSnapshot &routeState,
+      const std::map<std::string, std::string> &headers, const std::string &body)
+  {
+    if (!routeState.requestInspectionEnabled)
+    {
+      return L"disabled";
+    }
+
+    std::vector<std::wstring> parts;
+    const auto appendHeader = [&](const char *key, const wchar_t *label)
+    {
+      const auto it = headers.find(key);
+      if (it == headers.end() || it->second.empty())
+      {
+        return;
+      }
+      parts.push_back(std::wstring(label) + L"=" +
+                      cas::MaskHeaderValue(Utf8ToWide(key), FromUtf8(it->second)));
+    };
+
+    appendHeader("authorization", L"authorization");
+    appendHeader("x-api-key", L"x-api-key");
+    appendHeader("anthropic-api-key", L"anthropic-api-key");
+    appendHeader("content-type", L"content-type");
+    appendHeader("user-agent", L"user-agent");
+    appendHeader("openai-beta", L"openai-beta");
+
+    if (!body.empty())
+    {
+      const std::wstring bodyWide = FromUtf8(body);
+      const std::wstring model =
+          UnescapeJsonString(ExtractJsonField(bodyWide, L"model"));
+      if (!model.empty())
+      {
+        parts.push_back(L"model=" + model);
+      }
+      if (bodyWide.find(L"\"stream\"") != std::wstring::npos)
+      {
+        parts.push_back(std::wstring(L"stream=") +
+                        (ExtractJsonBoolField(bodyWide, L"stream", false)
+                             ? L"true"
+                             : L"false"));
+      }
+      if (bodyWide.find(L"\"tools\"") != std::wstring::npos)
+      {
+        parts.push_back(L"tools=present");
+      }
+      if (bodyWide.find(L"\"instructions\"") != std::wstring::npos)
+      {
+        parts.push_back(L"instructions=present");
+      }
+      if (ToLowerCopy(bodyWide).find(L"subagent") != std::wstring::npos)
+      {
+        parts.push_back(L"subagent=present");
+      }
+    }
+
+    return TruncateForLog(JoinSummaryParts(parts), 280);
+  }
+
   void AppendTrafficLog(const TrafficLogEntry &entry)
   {
     {
@@ -9921,12 +10148,16 @@ namespace
     g_TrafficLogVersion.fetch_add(1, std::memory_order_relaxed);
 
     std::wstringstream line;
-    line << L"{\"calledAt\":" << entry.calledAt << L",\"status\":" << entry.statusCode
+      line << L"{\"calledAt\":" << entry.calledAt << L",\"status\":" << entry.statusCode
          << L",\"method\":\"" << EscapeJsonString(entry.method) << L"\""
          << L",\"model\":\"" << EscapeJsonString(entry.model) << L"\""
          << L",\"protocol\":\"" << EscapeJsonString(entry.protocol) << L"\""
          << L",\"account\":\"" << EscapeJsonString(entry.account) << L"\""
          << L",\"path\":\"" << EscapeJsonString(entry.path) << L"\""
+         << L",\"routeMode\":\"" << EscapeJsonString(entry.routeMode) << L"\""
+         << L",\"upstream\":\"" << EscapeJsonString(entry.upstream) << L"\""
+         << L",\"inspectionSummary\":\""
+         << EscapeJsonString(entry.inspectionSummary) << L"\""
          << L",\"inputTokens\":" << entry.inputTokens
          << L",\"outputTokens\":" << entry.outputTokens
          << L",\"totalTokens\":" << entry.totalTokens
@@ -10107,7 +10338,10 @@ namespace
          << EscapeJsonString(it->model) << L"\",\"protocol\":\""
          << EscapeJsonString(it->protocol) << L"\",\"account\":\""
          << EscapeJsonString(it->account) << L"\",\"path\":\""
-         << EscapeJsonString(it->path) << L"\",\"inputTokens\":"
+         << EscapeJsonString(it->path) << L"\",\"routeMode\":\""
+         << EscapeJsonString(it->routeMode) << L"\",\"upstream\":\""
+         << EscapeJsonString(it->upstream) << L"\",\"inspectionSummary\":\""
+         << EscapeJsonString(it->inspectionSummary) << L"\",\"inputTokens\":"
          << it->inputTokens << L",\"outputTokens\":" << it->outputTokens
          << L",\"totalTokens\":" << it->totalTokens << L",\"elapsedMs\":"
          << it->elapsedMs << L",\"calledAt\":" << it->calledAt << L",\"calledAtText\":\""
@@ -10561,9 +10795,7 @@ namespace
     std::unordered_set<std::wstring> dedup;
     for (const auto &path : paths)
     {
-      HINTERNET hSession = WinHttpOpen(
-          BuildCodexApiUserAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-          WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+      HINTERNET hSession = OpenCodexProxySession(BuildCodexApiUserAgent());
       if (hSession == nullptr)
       {
         continue;
@@ -11621,9 +11853,7 @@ namespace
       return false;
     }
 
-    HINTERNET hSession = WinHttpOpen(
-        BuildCodexApiUserAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET hSession = OpenCodexProxySession(BuildCodexApiUserAgent());
     if (hSession == nullptr)
     {
       error = L"WinHttpOpen_failed";
@@ -11948,9 +12178,7 @@ namespace
         L"\"}]}]}";
     const std::string bodyUtf8 = WideToUtf8(body);
 
-    ctx.hSession = WinHttpOpen(
-        BuildCodexApiUserAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    ctx.hSession = OpenCodexProxySession(BuildCodexApiUserAgent());
     if (ctx.hSession == nullptr)
     {
       error = L"WinHttpOpen_failed";
@@ -12058,9 +12286,7 @@ namespace
       return false;
     }
 
-    ctx.hSession = WinHttpOpen(
-        BuildCodexApiUserAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    ctx.hSession = OpenCodexProxySession(BuildCodexApiUserAgent());
     if (ctx.hSession == nullptr)
     {
       error = L"WinHttpOpen_failed";
@@ -12636,16 +12862,14 @@ namespace
       *alreadyStreamed = false;
     }
 
-    fs::path authPath;
-    std::wstring accountName;
-    std::wstring groupName;
-    if (!ResolveProxyDispatchAuthPath(authPath, accountName, groupName, error))
-    {
-      return false;
-    }
-
     const std::string methodLower = ToLowerAscii(method);
     const std::string lowerPath = ToLowerAscii(path);
+    const cas::RouteStateSnapshot routeState = cas::GetRouteStateSnapshot();
+    const std::wstring routeModeText =
+        cas::RouteModeToConfigValue(routeState.routeMode);
+    const std::wstring upstreamText = BuildRouteUpstreamLabel(routeState);
+    const std::wstring inspectionSummary =
+        BuildInspectionSummary(routeState, headers, body);
     const auto startedAt = std::chrono::steady_clock::now();
     int inputTokens = -1;
     int outputTokens = -1;
@@ -12671,14 +12895,17 @@ namespace
       trafficMeta->method = ToLowerWide(FromUtf8(method));
       trafficMeta->model = reqModel;
       trafficMeta->protocol = protocol;
-      trafficMeta->account = accountName;
+      trafficMeta->account =
+          routeState.routeMode == cas::RouteMode::Ollama ? L"ollama" : L"-";
       trafficMeta->path = FromUtf8(path);
+      trafficMeta->routeMode = routeModeText;
+      trafficMeta->upstream = upstreamText;
+      trafficMeta->inspectionSummary = inspectionSummary;
       trafficMeta->inputTokens = -1;
       trafficMeta->outputTokens = -1;
       trafficMeta->totalTokens = -1;
       trafficMeta->elapsedMs = -1;
     }
-    accountUsed = accountName;
     auto finalizeReturn = [&](const bool result) -> bool
     {
       if (trafficMeta != nullptr)
@@ -12688,6 +12915,9 @@ namespace
         trafficMeta->model = reqModel;
         trafficMeta->protocol = protocol;
         trafficMeta->account = accountUsed;
+        trafficMeta->routeMode = routeModeText;
+        trafficMeta->upstream = upstreamText;
+        trafficMeta->inspectionSummary = inspectionSummary;
         trafficMeta->inputTokens = inputTokens;
         trafficMeta->outputTokens = outputTokens;
         trafficMeta->totalTokens = totalTokens;
@@ -12698,6 +12928,80 @@ namespace
       }
       return result;
     };
+    if (routeState.routeMode == cas::RouteMode::Ollama)
+    {
+      std::wstring methodW = L"POST";
+      if (methodLower == "get")
+      {
+        methodW = L"GET";
+      }
+      else if (methodLower == "post")
+      {
+        methodW = L"POST";
+      }
+      else if (methodLower == "put")
+      {
+        methodW = L"PUT";
+      }
+      else if (methodLower == "delete")
+      {
+        methodW = L"DELETE";
+      }
+      else if (!methodLower.empty())
+      {
+        methodW = FromUtf8(methodLower);
+      }
+
+      std::wstring contentTypeHeader = L"application/json";
+      const auto itContentType = headers.find("content-type");
+      if (itContentType != headers.end() && !itContentType->second.empty())
+      {
+        contentTypeHeader = FromUtf8(itContentType->second);
+      }
+
+      cas::UpstreamResponse upstream;
+      if (!cas::ForwardRequestToOllama(routeState, methodW, FromUtf8(path),
+                                       contentTypeHeader, body, upstream))
+      {
+        statusCode = 502;
+        contentType = L"application/json";
+        const std::wstring message = upstream.error.empty()
+                                         ? L"ollama_upstream_failed"
+                                         : upstream.error;
+        responseBody = WideToUtf8(L"{\"error\":{\"message\":\"" +
+                                  EscapeJsonString(message) + L"\"}}");
+        accountUsed = L"ollama";
+        return finalizeReturn(true);
+      }
+
+      statusCode =
+          upstream.statusCode > 0 ? static_cast<DWORD>(upstream.statusCode) : 502;
+      contentType =
+          upstream.contentType.empty() ? L"application/json" : upstream.contentType;
+      responseBody = std::move(upstream.body);
+      accountUsed = L"ollama";
+      const std::wstring responseWide = FromUtf8(responseBody);
+      ParseTokenUsageSmart(responseWide, inputTokens, outputTokens, totalTokens);
+      if (reqModel.empty())
+      {
+        reqModel = ExtractJsonField(responseWide, L"model");
+      }
+      return finalizeReturn(true);
+    }
+
+    fs::path authPath;
+    std::wstring accountName;
+    std::wstring groupName;
+    if (!ResolveProxyDispatchAuthPath(authPath, accountName, groupName, error))
+    {
+      return false;
+    }
+    if (trafficMeta != nullptr)
+    {
+      trafficMeta->account = accountName;
+    }
+    accountUsed = accountName;
+
     const bool silentAutoSwitchInRoundRobin =
         ToLowerCopy(g_ProxyDispatchMode) == L"round_robin";
     std::set<std::wstring> triedAccountKeys;
@@ -12720,6 +13024,9 @@ namespace
       retryFailedEntry.protocol = protocol;
       retryFailedEntry.account = failedAccount;
       retryFailedEntry.path = FromUtf8(path);
+      retryFailedEntry.routeMode = routeModeText;
+      retryFailedEntry.upstream = upstreamText;
+      retryFailedEntry.inspectionSummary = inspectionSummary;
       retryFailedEntry.inputTokens = inTokens;
       retryFailedEntry.outputTokens = outTokens;
       retryFailedEntry.totalTokens = totalUsed;
@@ -13542,6 +13849,7 @@ namespace
                                 statusCode, contentType, upstreamBody, error,
                                 &trafficMeta, clientSock, &alreadyStreamed))
     {
+      const cas::RouteStateSnapshot routeState = cas::GetRouteStateSnapshot();
       TrafficLogEntry failedMeta;
       failedMeta.calledAt =
           std::chrono::duration_cast<std::chrono::seconds>(
@@ -13553,6 +13861,10 @@ namespace
       failedMeta.protocol = lowerPath.rfind("/v1/", 0) == 0 ? L"openai" : L"codex";
       failedMeta.account = L"-";
       failedMeta.path = FromUtf8(path);
+      failedMeta.routeMode = cas::RouteModeToConfigValue(routeState.routeMode);
+      failedMeta.upstream = BuildRouteUpstreamLabel(routeState);
+      failedMeta.inspectionSummary =
+          BuildInspectionSummary(routeState, headers, body);
       failedMeta.inputTokens = -1;
       failedMeta.outputTokens = -1;
       failedMeta.totalTokens = -1;
@@ -13652,6 +13964,20 @@ namespace
        << L"\"" << L",\"fixedAccount\":\""
        << EscapeJsonString(g_ProxyFixedAccount) << L"\"" << L",\"fixedGroup\":\""
        << EscapeJsonString(g_ProxyFixedGroup) << L"\"}";
+    return ss.str();
+  }
+
+  std::wstring BuildHistoryShadowResultJson(const cas::HistoryShadowResult &result)
+  {
+    std::wstringstream ss;
+    ss << L"{\"type\":\"history_shadow_result\""
+       << L",\"ok\":" << (result.ok ? L"true" : L"false")
+       << L",\"scanned\":" << result.scanned
+       << L",\"imported\":" << result.imported
+       << L",\"skipped\":" << result.skipped
+       << L",\"failed\":" << result.failed
+       << L",\"message\":\"" << EscapeJsonString(result.message) << L"\""
+       << L"}";
     return ss.str();
   }
 
@@ -13804,9 +14130,7 @@ namespace
         L"\"}]}]}";
     const std::string bodyUtf8 = WideToUtf8(body);
 
-    HINTERNET hSession = WinHttpOpen(
-        BuildCodexApiUserAgent().c_str(), WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-        WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    HINTERNET hSession = OpenCodexProxySession(BuildCodexApiUserAgent());
     if (hSession == nullptr)
     {
       error = L"WinHttpOpen_failed";
@@ -14227,6 +14551,16 @@ void WebViewHost::SendConfig(bool firstRun) const
       L",\"proxyApiKey\":\"" + EscapeJsonString(cfg.proxyApiKey) + L"\"" +
       L",\"proxyDispatchMode\":\"" +
       EscapeJsonString(cfg.proxyDispatchMode) + L"\"" +
+      L",\"routeMode\":\"" + EscapeJsonString(cfg.routeMode) + L"\"" +
+      L",\"gptUpstreamProxyHost\":\"" +
+      EscapeJsonString(cfg.gptUpstreamProxyHost) + L"\"" +
+      L",\"gptUpstreamProxyPort\":" +
+      std::to_wstring(cfg.gptUpstreamProxyPort) +
+      L",\"ollamaBaseUrl\":\"" + EscapeJsonString(cfg.ollamaBaseUrl) +
+      L"\"" + L",\"requestInspectionEnabled\":" +
+      std::wstring(cfg.requestInspectionEnabled ? L"true" : L"false") +
+      L",\"requestInspectionRetentionLimit\":" +
+      std::to_wstring(cfg.requestInspectionRetentionLimit) +
       L",\"proxyFixedAccount\":\"" + EscapeJsonString(cfg.proxyFixedAccount) +
       L"\"" + L",\"proxyFixedGroup\":\"" +
       EscapeJsonString(cfg.proxyFixedGroup) + L"\"" +
@@ -14412,6 +14746,8 @@ void WebViewHost::ShowTrayContextMenu()
   const std::wstring trayMinimize =
       Tr(L"tray.menu.minimize_to_tray", L"最小化到托盘");
   const std::wstring trayExit = Tr(L"tray.menu.exit", L"退出程序");
+  const std::wstring trayRouteGpt = L"Route: GPT";
+  const std::wstring trayRouteOllama = L"Route: Ollama";
   const std::wstring traySwitch =
       Tr(L"tray.menu.quick_switch", L"快速切换账号");
   const std::wstring trayNoSwitch =
@@ -14419,6 +14755,17 @@ void WebViewHost::ShowTrayContextMenu()
   AppendMenuW(menu, MF_STRING, kTrayCmdOpenWindow, trayOpen.c_str());
   AppendMenuW(menu, MF_STRING, kTrayCmdMinimizeToTray, trayMinimize.c_str());
   AppendMenuW(menu, MF_STRING, kTrayCmdExitApp, trayExit.c_str());
+  AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+  const cas::RouteStateSnapshot routeState = cas::GetRouteStateSnapshot();
+  AppendMenuW(menu,
+              MF_STRING |
+                  (routeState.routeMode == cas::RouteMode::Gpt ? MF_CHECKED : 0),
+              kTrayCmdRouteGpt, trayRouteGpt.c_str());
+  AppendMenuW(menu,
+              MF_STRING | (routeState.routeMode == cas::RouteMode::Ollama
+                               ? MF_CHECKED
+                               : 0),
+              kTrayCmdRouteOllama, trayRouteOllama.c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
   IndexData idx;
@@ -14513,6 +14860,29 @@ bool WebViewHost::HandleTrayCommand(const UINT commandId)
   {
     SetPropW(hwnd_, kExitWindowPropName, reinterpret_cast<HANDLE>(1));
     PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+    return true;
+  }
+  if (commandId == kTrayCmdRouteGpt)
+  {
+    if (!PersistRouteModeSelection(cas::RouteMode::Gpt))
+    {
+      SendWebStatus(L"GPT 路由保存失败", L"error", L"route_mode_save_failed");
+      return true;
+    }
+    SendConfig(false);
+    SendWebStatus(L"已切换到 GPT 路由", L"success", L"route_mode_gpt");
+    return true;
+  }
+  if (commandId == kTrayCmdRouteOllama)
+  {
+    if (!PersistRouteModeSelection(cas::RouteMode::Ollama))
+    {
+      SendWebStatus(L"Ollama 路由保存失败", L"error",
+                    L"route_mode_save_failed");
+      return true;
+    }
+    SendConfig(false);
+    SendWebStatus(L"已切换到 Ollama 路由", L"success", L"route_mode_ollama");
     return true;
   }
   if (commandId >= kTrayCmdSwitchBase && commandId <= kTrayCmdSwitchMax)
@@ -15553,6 +15923,34 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
     return;
   }
 
+  if (action == L"history_shadow_import")
+  {
+    const cas::HistoryShadowResult result =
+        cas::ImportHistoryShadowCopies(GetCodexHomeDir(), L"openai", L"custom");
+    SendWebJson(BuildHistoryShadowResultJson(result));
+    std::wstring status = L"历史影子导入完成：扫描 " +
+                          std::to_wstring(result.scanned) + L"，导入 " +
+                          std::to_wstring(result.imported) + L"，跳过 " +
+                          std::to_wstring(result.skipped) + L"，失败 " +
+                          std::to_wstring(result.failed);
+    SendWebStatus(status, result.ok ? L"success" : L"warning", result.message);
+    return;
+  }
+
+  if (action == L"history_shadow_undo")
+  {
+    const cas::HistoryShadowResult result =
+        cas::UndoHistoryShadowCopies(GetCodexHomeDir());
+    SendWebJson(BuildHistoryShadowResultJson(result));
+    std::wstring status = L"历史影子导入撤销完成：扫描 " +
+                          std::to_wstring(result.scanned) + L"，删除 " +
+                          std::to_wstring(result.imported) + L"，跳过 " +
+                          std::to_wstring(result.skipped) + L"，失败 " +
+                          std::to_wstring(result.failed);
+    SendWebStatus(status, result.ok ? L"success" : L"warning", result.message);
+    return;
+  }
+
   if (action == L"get_traffic_logs")
   {
     const std::wstring account = ExtractJsonField(rawMessage, L"account");
@@ -15705,6 +16103,7 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
     AppConfig cfg;
     if (LoadConfig(cfg))
     {
+      SyncRouteStateFromConfig(cfg);
       autoRefreshQuotaDisabled_ = !cfg.enableAutoRefreshQuota;
       g_ProxyAutoMarkAbnormalAccounts = cfg.autoMarkAbnormalAccounts;
       g_AutoDeleteAbnormalAccounts = cfg.autoDeleteAbnormalAccounts;
@@ -15834,6 +16233,19 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
         rawMessage.find(L"\"proxyApiKey\"") != std::wstring::npos;
     const bool hasProxyDispatchMode =
         rawMessage.find(L"\"proxyDispatchMode\"") != std::wstring::npos;
+    const bool hasRouteMode =
+        rawMessage.find(L"\"routeMode\"") != std::wstring::npos;
+    const bool hasGptUpstreamProxyHost =
+        rawMessage.find(L"\"gptUpstreamProxyHost\"") != std::wstring::npos;
+    const bool hasGptUpstreamProxyPort =
+        rawMessage.find(L"\"gptUpstreamProxyPort\"") != std::wstring::npos;
+    const bool hasOllamaBaseUrl =
+        rawMessage.find(L"\"ollamaBaseUrl\"") != std::wstring::npos;
+    const bool hasRequestInspectionEnabled =
+        rawMessage.find(L"\"requestInspectionEnabled\"") != std::wstring::npos;
+    const bool hasRequestInspectionRetentionLimit =
+        rawMessage.find(L"\"requestInspectionRetentionLimit\"") !=
+        std::wstring::npos;
     const bool hasProxyFixedAccount =
         rawMessage.find(L"\"proxyFixedAccount\"") != std::wstring::npos;
     const bool hasProxyFixedGroup =
@@ -15917,6 +16329,18 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
     const std::wstring proxyDispatchMode =
         ToLowerCopy(UnescapeJsonString(
             ExtractJsonStringField(rawMessage, L"proxyDispatchMode")));
+    const std::wstring routeMode =
+        UnescapeJsonString(ExtractJsonStringField(rawMessage, L"routeMode"));
+    const std::wstring gptUpstreamProxyHost = UnescapeJsonString(
+        ExtractJsonStringField(rawMessage, L"gptUpstreamProxyHost"));
+    const int gptUpstreamProxyPort =
+        ExtractJsonIntField(rawMessage, L"gptUpstreamProxyPort", -1);
+    const std::wstring ollamaBaseUrl =
+        UnescapeJsonString(ExtractJsonStringField(rawMessage, L"ollamaBaseUrl"));
+    const bool requestInspectionEnabled =
+        ExtractJsonBoolField(rawMessage, L"requestInspectionEnabled", true);
+    const int requestInspectionRetentionLimit = ExtractJsonIntField(
+        rawMessage, L"requestInspectionRetentionLimit", 400);
     const std::wstring proxyFixedAccount =
         UnescapeJsonString(ExtractJsonStringField(rawMessage, L"proxyFixedAccount"));
     const std::wstring proxyFixedGroup =
@@ -16004,6 +16428,37 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
       {
         cfg.proxyDispatchMode = proxyDispatchMode;
       }
+    }
+    if (hasRouteMode || hasGptUpstreamProxyHost || hasGptUpstreamProxyPort ||
+        hasOllamaBaseUrl || hasRequestInspectionEnabled ||
+        hasRequestInspectionRetentionLimit)
+    {
+      cas::RouteSettings routeSettings;
+      routeSettings.routeMode = hasRouteMode ? cas::ParseRouteMode(routeMode)
+                                             : cas::ParseRouteMode(cfg.routeMode);
+      routeSettings.gptProxyHost = hasGptUpstreamProxyHost
+                                       ? gptUpstreamProxyHost
+                                       : cfg.gptUpstreamProxyHost;
+      routeSettings.gptProxyPort = hasGptUpstreamProxyPort
+                                       ? gptUpstreamProxyPort
+                                       : cfg.gptUpstreamProxyPort;
+      routeSettings.ollamaBaseUrl =
+          hasOllamaBaseUrl ? ollamaBaseUrl : cfg.ollamaBaseUrl;
+      routeSettings.requestInspectionEnabled =
+          hasRequestInspectionEnabled ? requestInspectionEnabled
+                                      : cfg.requestInspectionEnabled;
+      routeSettings.requestInspectionRetentionLimit =
+          hasRequestInspectionRetentionLimit
+              ? requestInspectionRetentionLimit
+              : cfg.requestInspectionRetentionLimit;
+      routeSettings = cas::NormalizeRouteSettings(routeSettings);
+      cfg.routeMode = cas::RouteModeToConfigValue(routeSettings.routeMode);
+      cfg.gptUpstreamProxyHost = routeSettings.gptProxyHost;
+      cfg.gptUpstreamProxyPort = routeSettings.gptProxyPort;
+      cfg.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+      cfg.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
+      cfg.requestInspectionRetentionLimit =
+          routeSettings.requestInspectionRetentionLimit;
     }
     if (hasProxyFixedAccount)
     {
@@ -16105,6 +16560,7 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
     const bool saved = SaveConfig(cfg);
     if (saved)
     {
+      SyncRouteStateFromConfig(cfg);
       ApplyWindowTitleTheme(hwnd_, cfg.theme);
       autoRefreshQuotaDisabled_ = !cfg.enableAutoRefreshQuota;
       g_ProxyAutoMarkAbnormalAccounts = cfg.autoMarkAbnormalAccounts;
@@ -16800,6 +17256,7 @@ void WebViewHost::Initialize(HWND hwnd)
   g_ProxyDispatchMode = startCfg.proxyDispatchMode;
   g_ProxyFixedAccount = startCfg.proxyFixedAccount;
   g_ProxyFixedGroup = startCfg.proxyFixedGroup;
+  SyncRouteStateFromConfig(startCfg);
   cloudAccountAutoDownloadEnabled_ = startCfg.cloudAccountAutoDownload;
   webDavEnabled_ = startCfg.webdavEnabled;
   webDavAutoSyncEnabled_ = startCfg.webdavEnabled && startCfg.webdavAutoSync;

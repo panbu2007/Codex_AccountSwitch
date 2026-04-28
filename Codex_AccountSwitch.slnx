@@ -5,4 +5,5 @@
     <Platform Name="ARM64" />
   </Configurations>
   <Project Path="Codex_AccountSwitch/Codex_AccountSwitch.vcxproj" Id="e21c8e9c-dd8b-4419-8f0b-ebb2a9fccd32" />
+  <Project Path="Codex_AccountSwitch_Tests/Codex_AccountSwitch_Tests.vcxproj" Id="6a9af7d6-6d4b-4b6d-ae05-87d0b86d76c1" />
 </Solution>

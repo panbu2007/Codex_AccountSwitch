@@ -1755,6 +1755,12 @@ body.add-account-modal-open .shell {
   max-width: 100%;
 }
 
+.proxy-grid .proxy-item select,
+.proxy-grid .proxy-item input[type="text"],
+.proxy-grid .proxy-item input[type="number"] {
+  width: 100%;
+}
+
 .proxy-secret-input {
   width: 100% !important;
   font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
@@ -1859,6 +1865,34 @@ body.add-account-modal-open .shell {
 
 .custom-model-tag .custom-model-remove:hover {
   color: var(--danger, #ef4444);
+}
+
+.history-shadow-card {
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: var(--surface-soft);
+}
+
+.history-shadow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+#historyShadowUndoBtn {
+  background: var(--danger-soft-bg);
+  border-color: var(--danger-soft-border);
+  color: var(--danger);
+}
+
+#historyShadowUndoBtn:hover:not(:disabled) {
+  background: var(--danger-soft-hover-bg);
+  border-color: var(--danger-soft-hover-border);
+  color: var(--danger);
 }
 
 input,
@@ -3259,6 +3293,12 @@ body.compact-ui .dashboard-title {
 
 :root[data-theme="dark"] .tag.current {
   animation: tagPulseDark 2.5s ease-in-out infinite;
+}
+
+.traffic-subline {
+  font-size: 12px;
+  opacity: 0.72;
+  margin-top: 2px;
 }
 
 @keyframes tagPulseDark {

@@ -132,3 +132,26 @@
 ## 安全说明
 
 所有账号数据默认仅保存在本地。除非你主动导出或分享，数据不会离开你的设备。
+
+## GPT / Ollama 路由切换
+
+Windows 版本新增 Codex CLI 本地路由切换能力。
+
+- `GPT` 路由：Codex CLI 连接本地 API 代理，应用再将 GPT 请求转发到上游代理，默认是 Clash 的 `127.0.0.1:7890`。
+- `Ollama` 路由：Codex CLI 仍连接同一个本地 API 代理，应用将请求转发到本地 Ollama，默认是 `http://127.0.0.1:11434`。
+- 可以通过托盘菜单或 WebView 设置页切换当前路由。
+- 流量日志会记录 `routeMode`、实际上游地址和脱敏后的请求检查摘要。
+
+### Codex CLI 使用方式
+
+将本地代理作为 OpenAI-compatible base URL 使用：
+
+```powershell
+codex exec ... -c 'model_provider="custom"' -c 'model_providers.custom.base_url="http://127.0.0.1:11480/v1"'
+```
+
+`11480` 当前是 API endpoint proxy，不是通用 HTTP CONNECT 代理。不建议把 `HTTP_PROXY=http://127.0.0.1:11480` 作为 Codex CLI 的主要接入方式。
+
+### 子代理状态
+
+已经确认 Codex subagent 请求会经过本地代理。但当前请求检查字段还不能稳定区分主会话请求和子代理请求，因此暂不启用 main/subagent 独立路由。当前稳定支持的是全局 `GPT` 或全局 `Ollama` 切换。

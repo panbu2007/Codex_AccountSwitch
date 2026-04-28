@@ -199,8 +199,13 @@
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="file_utils.cpp" />
+    <ClCompile Include="history_shadow_import.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="main_window.cpp" />
+    <ClCompile Include="proxy_route_state.cpp" />
+    <ClCompile Include="proxy_upstream.cpp" />
+    <ClCompile Include="request_inspector.cpp" />
+    <ClCompile Include="route_settings.cpp" />
     <ClCompile Include="update_checker.cpp" />
     <ClCompile Include="webview_host.cpp" />
   </ItemGroup>
@@ -208,9 +213,14 @@
     <ClInclude Include="app.h" />
     <ClInclude Include="app_version.h" />
     <ClInclude Include="file_utils.h" />
+    <ClInclude Include="history_shadow_import.h" />
     <ClInclude Include="main_window.h" />
     <ClInclude Include="preset_models.h" />
+    <ClInclude Include="proxy_route_state.h" />
+    <ClInclude Include="proxy_upstream.h" />
+    <ClInclude Include="request_inspector.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="route_settings.h" />
     <ClInclude Include="update_checker.h" />
     <ClInclude Include="webview_host.h" />
   </ItemGroup>

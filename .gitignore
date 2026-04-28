@@ -21,6 +21,7 @@
 *.o
 *.pdb
 *.ipdb
+*.idb
 *.iobj
 *.ilk
 *.exe.recipe
@@ -63,6 +64,7 @@ obj/
 .dotnet/*
 
 *.txt
+tmp_exec*.jsonl
 */__pycache__/*
 __pycache__/
 AGENTS.md

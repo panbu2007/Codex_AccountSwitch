@@ -27,6 +27,29 @@
 - Enables seamless account switching without restarting
 - Settings - Account - Automatic Account Switching Prompt for Low Credit Limit. Enabling this feature allows for automatic number switching to continue development work when credit limits are insufficient.
 
+## GPT / Ollama Route Switching
+
+This Windows build adds a local route switcher for Codex CLI traffic.
+
+- `GPT` route: Codex CLI talks to the local API proxy, then the app forwards GPT traffic through the configured upstream proxy. The default upstream is Clash at `127.0.0.1:7890`.
+- `Ollama` route: Codex CLI talks to the same local API proxy, then the app forwards traffic to local Ollama. The default Ollama endpoint is `http://127.0.0.1:11434`.
+- Route mode can be changed from the tray menu or the WebView settings page.
+- Traffic logs now include route metadata such as `routeMode`, selected upstream, and masked request inspection summaries.
+
+### Codex CLI Usage
+
+Use the local API proxy as an OpenAI-compatible base URL:
+
+```powershell
+codex exec ... -c 'model_provider="custom"' -c 'model_providers.custom.base_url="http://127.0.0.1:11480/v1"'
+```
+
+Port `11480` is an API endpoint proxy, not a generic HTTP CONNECT proxy. Do not use `HTTP_PROXY=http://127.0.0.1:11480` as the primary Codex CLI integration mode.
+
+### Subagent Status
+
+Codex subagent requests have been confirmed to pass through the local proxy. Current request inspection does not yet expose a stable discriminator for main-session versus subagent requests, so separate main/subagent routing is intentionally not enabled yet. The current supported behavior is global `GPT` or global `Ollama` switching.
+
 ## UI Preview
 
 ### 1. Dashboard (Light)
