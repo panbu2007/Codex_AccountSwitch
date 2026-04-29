@@ -3869,6 +3869,26 @@ namespace
     return true;
   }
 
+  bool IsCodexProfileUsingLocalProxyMode()
+  {
+    const fs::path codexHome = GetCodexHomeDir();
+    if (codexHome.empty())
+    {
+      return false;
+    }
+    std::wstring toml;
+    if (!ReadUtf8File(codexHome / L"config.toml", toml))
+    {
+      return false;
+    }
+    const std::wstring lower = ToLowerCopy(toml);
+    return lower.find(L"# cas_local_proxy_begin") != std::wstring::npos &&
+           lower.find(L"# cas_local_proxy_end") != std::wstring::npos &&
+           lower.find(L"model_provider") != std::wstring::npos &&
+           lower.find(L"\"custom\"") != std::wstring::npos &&
+           lower.find(L"127.0.0.1") != std::wstring::npos;
+  }
+
   bool SyncStealthProxyEnvironment(const AppConfig &cfg, std::wstring &error)
   {
     error.clear();
@@ -14514,6 +14534,7 @@ void WebViewHost::SendConfig(bool firstRun) const
 {
   AppConfig cfg;
   LoadConfig(cfg);
+  const bool codexLocalProxyMode = IsCodexProfileUsingLocalProxyMode();
   SendWebJson(
       L"{\"type\":\"config\",\"firstRun\":" +
       std::wstring(firstRun ? L"true" : L"false") + L",\"language\":\"" +
@@ -14547,7 +14568,9 @@ void WebViewHost::SendConfig(bool firstRun) const
       L",\"proxyAutoStart\":" +
       std::wstring(cfg.proxyAutoStart ? L"true" : L"false") +
       L",\"proxyStealthMode\":" +
-      std::wstring(cfg.proxyStealthMode ? L"true" : L"false") +
+      std::wstring(codexLocalProxyMode ? L"true" : L"false") +
+      L",\"codexLocalProxyMode\":" +
+      std::wstring(codexLocalProxyMode ? L"true" : L"false") +
       L",\"proxyApiKey\":\"" + EscapeJsonString(cfg.proxyApiKey) + L"\"" +
       L",\"proxyDispatchMode\":\"" +
       EscapeJsonString(cfg.proxyDispatchMode) + L"\"" +
@@ -16359,7 +16382,7 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
         UnescapeJsonString(ExtractJsonStringField(rawMessage, L"stealthTomlExtra"));
     AppConfig cfg;
     LoadConfig(cfg);
-    const bool wasProxyStealthMode = cfg.proxyStealthMode;
+    const bool wasProxyStealthMode = IsCodexProfileUsingLocalProxyMode();
     if (!language.empty())
     {
       cfg.language = language;
@@ -16637,6 +16660,11 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
             }
             warnText += L"环境变量同步失败: " + envError;
           }
+          const bool actualLocalMode = IsCodexProfileUsingLocalProxyMode();
+          PostAsyncWebJson(targetHwnd,
+                           L"{\"type\":\"codex_local_proxy_mode\",\"active\":" +
+                               std::wstring(actualLocalMode ? L"true" : L"false") +
+                               L"}");
           if (!warnText.empty()) {
             SendWebStatusThreadSafe(targetHwnd, warnText, L"warning",
                                     L"config_saved");

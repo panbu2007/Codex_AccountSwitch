@@ -185,7 +185,7 @@
     "proxy.status_stopped": "Service stopped",
     "proxy.status_running": "Running on port {port}",
     "proxy.port_label": "Listen Port",
-    "proxy.port_hint": "Local API proxy listen port. Default 8045.",
+    "proxy.port_hint": "Local API proxy listen port. Default 11480. Codex local mode uses http://127.0.0.1:<port>/v1.",
     "proxy.timeout_label": "Request Timeout (sec)",
     "proxy.timeout_hint": "Default 120 sec, range 30-7200. Includes long reasoning/stream wait.",
     "proxy.auto_start_label": "Auto-start with app",
@@ -195,8 +195,8 @@
     "proxy.allow_lan_hint_on": "Bind to 0.0.0.0, LAN devices can access this proxy port.",
     "proxy.api_key_label": "API Key",
     "proxy.api_key_hint": "Use Authorization: Bearer <API_KEY> or x-api-key on each proxy request.",
-    "proxy.stealth_mode_label": "Codex Client Use Local Proxy Mode",
-    "proxy.stealth_mode_hint": "Start local proxy service first.",
+    "proxy.stealth_mode_label": "Codex uses local proxy mode",
+    "proxy.stealth_mode_hint": "When enabled, Codex config/auth point to the local proxy. When disabled, official Codex config/auth are restored.",
     "proxy.stealth_toml_label": "config.toml Template",
     "proxy.stealth_toml_hint": "Full content of the managed block in config.toml. Use {{PROXY_URL}} for the proxy API URL (auto-replaced). Leave empty for defaults.",
     "proxy.stealth_toml_placeholder": "disable_response_storage = true\npreferred_auth_method = \"apikey\"\nmodel_provider = \"custom\"\n\n[model_providers.custom]\nname = \"custom\"\nbase_url = \"{{PROXY_URL}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n\n[windows]\nsandbox = \"unelevated\"\n\nmodel = \"gpt-5.4\"\nmodel_reasoning_effort = \"xhigh\"",
@@ -798,7 +798,7 @@
     "proxy.status_stopped": "服务已停止",
     "proxy.status_running": "服务运行中（端口 {port}）",
     "proxy.port_label": "监听端口",
-    "proxy.port_hint": "本地 API 代理监听端口，默认 8045。",
+    "proxy.port_hint": "本地 API 代理监听端口，默认 11480。Codex 本地模式会使用 http://127.0.0.1:<端口>/v1。",
     "proxy.timeout_label": "请求超时（秒）",
     "proxy.timeout_hint": "默认 120 秒，范围 30-7200 秒。用于等待上游响应（包含长文本/长推理）。",
     "proxy.auto_start_label": "跟随应用自动启动",
@@ -808,8 +808,8 @@
     "proxy.allow_lan_hint_on": "监听 0.0.0.0，局域网其他设备也可访问该端口。",
     "proxy.api_key_label": "API 密钥",
     "proxy.api_key_hint": "调用代理时请在请求头传入：Authorization: Bearer <API_KEY> 或 x-api-key。",
-    "proxy.stealth_mode_label": "Codex 客户端使用本地反代模式",
-    "proxy.stealth_mode_hint": "⚠️ 需要先启动本地反向代理服务",
+    "proxy.stealth_mode_label": "Codex 使用本地代理模式",
+    "proxy.stealth_mode_hint": "开启后 Codex 配置/认证会指向本地代理；关闭后还原官方 Codex 配置/认证。",
     "proxy.stealth_toml_label": "config.toml 模板",
     "proxy.stealth_toml_hint": "config.toml 托管块的完整内容。使用 {{PROXY_URL}} 作为代理 API 地址（自动替换）。留空使用默认值。",
     "proxy.stealth_toml_placeholder": "disable_response_storage = true\npreferred_auth_method = \"apikey\"\nmodel_provider = \"custom\"\n\n[model_providers.custom]\nname = \"custom\"\nbase_url = \"{{PROXY_URL}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n\n[windows]\nsandbox = \"unelevated\"\n\nmodel = \"gpt-5.4\"\nmodel_reasoning_effort = \"xhigh\"",
@@ -1507,6 +1507,7 @@
     proxyAutoStart: false,
     proxyApiKey: "",
     proxyStealthMode: false,
+    codexLocalProxyMode: false,
     proxyDispatchMode: "round_robin",
     routeMode: "gpt",
     gptUpstreamProxyHost: "127.0.0.1",
@@ -2858,7 +2859,7 @@
 
   function renderProxyStatus() {
     const running = !!state.proxyRunning;
-    const portText = String(dom.proxyPortInput.value || "8045");
+    const portText = String(dom.proxyPortInput.value || "11480");
     dom.proxyStatusText.textContent = running
       ? t("proxy.status_running", { port: portText })
       : t("proxy.status_stopped");
@@ -3686,7 +3687,7 @@
       autoRefreshAllMinutes: state.autoRefreshAllMinutes,
       autoRefreshCurrentMinutes: state.autoRefreshCurrentMinutes,
       theme: state.themeMode,
-      proxyPort: Math.max(1, Math.min(65535, Number(dom.proxyPortInput.value || 8045))),
+      proxyPort: Math.max(1, Math.min(65535, Number(dom.proxyPortInput.value || 11480))),
       proxyTimeoutSec: Math.max(30, Math.min(7200, Number(dom.proxyTimeoutInput.value || 120))),
       proxyAllowLan: !!state.proxyAllowLan,
       proxyAutoStart: !!state.proxyAutoStart,
@@ -3746,7 +3747,7 @@
     const msgAutoRefreshAllMinutes = clampRefreshMinutes(msg.autoRefreshAllMinutes, 15);
     const msgAutoRefreshCurrentMinutes = clampRefreshMinutes(msg.autoRefreshCurrentMinutes, 5);
     const msgTheme = normalizeThemeMode(msg.theme || "auto");
-    const msgProxyPort = Math.max(1, Math.min(65535, Number(msg.proxyPort || 8045)));
+    const msgProxyPort = Math.max(1, Math.min(65535, Number(msg.proxyPort || 11480)));
     const msgProxyTimeoutSec = Math.max(30, Math.min(7200, Number(msg.proxyTimeoutSec || 120)));
     const msgProxyAllowLan = msg.proxyAllowLan === true || msg.proxyAllowLan === "true";
     const msgProxyAutoStart = msg.proxyAutoStart === true || msg.proxyAutoStart === "true";
@@ -3789,7 +3790,7 @@
       && msgAutoRefreshAllMinutes === pending.autoRefreshAllMinutes
       && msgAutoRefreshCurrentMinutes === pending.autoRefreshCurrentMinutes
       && msgTheme === pending.theme
-      && msgProxyPort === Math.max(1, Math.min(65535, Number(pending.proxyPort || 8045)))
+      && msgProxyPort === Math.max(1, Math.min(65535, Number(pending.proxyPort || 11480)))
       && msgProxyTimeoutSec === Math.max(30, Math.min(7200, Number(pending.proxyTimeoutSec || 120)))
       && msgProxyAllowLan === pending.proxyAllowLan
       && msgProxyAutoStart === pending.proxyAutoStart
@@ -4070,7 +4071,7 @@
       });
     });
     dom.proxyStartBtn.addEventListener("click", () => {
-      const port = Math.max(1, Math.min(65535, Number(dom.proxyPortInput.value || 8045)));
+      const port = Math.max(1, Math.min(65535, Number(dom.proxyPortInput.value || 11480)));
       const timeoutSec = Math.max(30, Math.min(7200, Number(dom.proxyTimeoutInput.value || 120)));
       post("start_proxy_service", {
         port,
@@ -4889,6 +4890,18 @@
         return;
       }
 
+      if (msg && typeof msg === "object" && msg.type === "codex_local_proxy_mode") {
+        state.codexLocalProxyMode = msg.active === true || msg.active === "true";
+        state.proxyStealthMode = state.codexLocalProxyMode;
+        if (dom.proxyStealthModeToggle) {
+          dom.proxyStealthModeToggle.checked = state.codexLocalProxyMode;
+        }
+        if (dom.stealthTomlSection) {
+          dom.stealthTomlSection.style.display = state.codexLocalProxyMode ? "" : "none";
+        }
+        return;
+      }
+
       if (msg && typeof msg === "object" && msg.type === "proxy_status") {
         state.proxyRunning = msg.running === true || msg.running === "true";
         const port = Number(msg.port);
@@ -5234,7 +5247,9 @@
           state.proxyAllowLan = msg.proxyAllowLan === true || msg.proxyAllowLan === "true";
           state.proxyAutoStart = msg.proxyAutoStart === true || msg.proxyAutoStart === "true";
           state.proxyApiKey = typeof msg.proxyApiKey === "string" ? msg.proxyApiKey : "";
-          state.proxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
+          state.codexLocalProxyMode = msg.codexLocalProxyMode === true || msg.codexLocalProxyMode === "true"
+            || msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
+          state.proxyStealthMode = state.codexLocalProxyMode;
           state.proxyDispatchMode = String(msg.proxyDispatchMode || "round_robin");
           state.routeMode = String(msg.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
           state.gptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
@@ -5309,7 +5324,9 @@
           state.proxyAllowLan = msg.proxyAllowLan === true || msg.proxyAllowLan === "true";
           state.proxyAutoStart = msg.proxyAutoStart === true || msg.proxyAutoStart === "true";
           state.proxyApiKey = typeof msg.proxyApiKey === "string" ? msg.proxyApiKey : state.proxyApiKey;
-          state.proxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
+          state.codexLocalProxyMode = msg.codexLocalProxyMode === true || msg.codexLocalProxyMode === "true"
+            || msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
+          state.proxyStealthMode = state.codexLocalProxyMode;
           if (typeof msg.stealthTomlExtra === "string") state.stealthTomlExtra = msg.stealthTomlExtra;
           state.proxyDispatchMode = String(msg.proxyDispatchMode || state.proxyDispatchMode || "round_robin");
           state.routeMode = String(msg.routeMode || state.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
