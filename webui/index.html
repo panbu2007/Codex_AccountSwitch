@@ -312,8 +312,9 @@
                     <select class="settings-number-input proxy-input" id="routeModeSelect">
                       <option value="gpt">GPT</option>
                       <option value="ollama">Ollama</option>
+                      <option value="xiaomi">Xiaomi</option>
                     </select>
-                    <div class="settings-sub-note" id="routeModeHint">Choose whether Codex traffic goes to GPT via 7890 or Ollama via 11434.</div>
+                    <div class="settings-sub-note" id="routeModeHint">Choose whether Codex traffic goes to GPT, Ollama, or Xiaomi MiMo.</div>
                   </div>
 
                   <div class="settings-group proxy-item">
@@ -896,6 +897,7 @@
           <button class="add-account-tab-btn" data-add-tab="manual" id="addTabManualBtn"></button>
           <button class="add-account-tab-btn" data-add-tab="current" id="addTabCurrentBtn"></button>
           <button class="add-account-tab-btn" data-add-tab="file" id="addTabFileBtn"></button>
+          <button class="add-account-tab-btn" data-add-tab="xiaomi" id="addTabXiaomiBtn"></button>
         </div>
         <div class="add-account-pane active" id="addPaneOAuth">
           <div class="add-account-desc" id="addPaneOAuthDesc"></div>
@@ -930,6 +932,26 @@
         <div class="add-account-pane" id="addPaneFile">
           <div class="add-account-desc" id="addPaneFileDesc"></div>
           <button class="tool-btn primary add-account-action-btn" id="addAccountImportOAuthBtn"></button>
+        </div>
+        <div class="add-account-pane" id="addPaneXiaomi">
+          <div class="add-account-desc" id="addPaneXiaomiDesc"></div>
+          <div class="settings-group">
+            <div class="settings-label" id="xiaomiBaseUrlLabel">Xiaomi Base URL</div>
+            <input class="settings-number-input proxy-input xiaomi-url-input" id="xiaomiBaseUrlInput" type="text" value="https://token-plan-cn.xiaomimimo.com/v1" />
+            <div class="settings-sub-note" id="xiaomiBaseUrlHint">Xiaomi MiMo OpenAI-compatible endpoint.</div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-label" id="xiaomiModelLabel">Xiaomi Model</div>
+            <input class="settings-number-input proxy-input xiaomi-model-input" id="xiaomiModelInput" type="text" list="xiaomiModelList" autocomplete="off" />
+            <datalist id="xiaomiModelList"></datalist>
+            <div class="settings-sub-note" id="xiaomiModelHint">Model name used when routing Codex requests to Xiaomi.</div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-label" id="xiaomiApiKeyLabel">Xiaomi API Key</div>
+            <input class="settings-number-input proxy-input proxy-secret-input" id="xiaomiApiKeyInput" type="password" autocomplete="new-password" />
+            <div class="settings-sub-note" id="xiaomiApiKeyHint">Used for api-key and Authorization headers in Xiaomi mode.</div>
+          </div>
+          <button class="tool-btn primary add-account-action-btn" id="addAccountXiaomiSaveBtn"></button>
         </div>
       </div>
       <div class="modal-actions">

@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   "use strict";
 
   const IDE_LIST = ["Code.exe", "Trae.exe", "Kiro.exe", "Antigravity.exe"];
@@ -13,6 +13,14 @@
     "gpt-5.1-codex-max",
     "gpt-5.1-codex-mini"
   ];
+  const XIAOMI_API_MODELS = [
+    "mimo-v2.5-pro",
+    "mimo-v2.5",
+    "mimo-v2-pro",
+    "mimo-v2-omni",
+    "mimo-v2-flash"
+  ];
+  const DEFAULT_XIAOMI_MODEL = "mimo-v2.5-pro";
   const DEFAULT_I18N = {
     "app.brand": "Codex Account Switch",
     "tab.dashboard": "Dashboard",
@@ -199,7 +207,7 @@
     "proxy.stealth_mode_hint": "When enabled, Codex config/auth point to the local proxy. When disabled, official Codex config/auth are restored.",
     "proxy.stealth_toml_label": "config.toml Template",
     "proxy.stealth_toml_hint": "Full content of the managed block in config.toml. Use {{PROXY_URL}} for the proxy API URL (auto-replaced). Leave empty for defaults.",
-    "proxy.stealth_toml_placeholder": "disable_response_storage = true\npreferred_auth_method = \"apikey\"\nmodel_provider = \"custom\"\n\n[model_providers.custom]\nname = \"custom\"\nbase_url = \"{{PROXY_URL}}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n\n[windows]\nsandbox = \"unelevated\"\n\nmodel = \"gpt-5.4\"\nmodel_reasoning_effort = \"xhigh\"",
+    "proxy.stealth_toml_placeholder": "disable_response_storage = true\npreferred_auth_method = \"apikey\"\nmodel_provider = \"custom\"\n\n[model_providers.custom]\nname = \"custom\"\nbase_url = \"{{PROXY_URL}}\"\nwire_api = \"{{WIRE_API}}\"\nrequires_openai_auth = false\n\n[windows]\nsandbox = \"unelevated\"\n\nmodel = \"gpt-5.4\"\nmodel_reasoning_effort = \"xhigh\"",
     "api.subtab.proxy": "Proxy",
     "api.subtab.test": "Test",
     "proxy.dispatch_mode_label": "Account Dispatch",
@@ -211,15 +219,22 @@
     "proxy.fixed_account_hint": "Fixed mode always follows the current account selected in Account Management.",
     "proxy.fixed_account_current": "Current selected account",
     "proxy.route_mode_label": "Route Mode",
-    "proxy.route_mode_hint": "Choose whether Codex traffic goes to GPT via 7890 or Ollama via 11434.",
+    "proxy.route_mode_hint": "Choose whether Codex traffic goes to GPT, Ollama, or Xiaomi MiMo.",
     "proxy.route_mode_gpt": "GPT",
     "proxy.route_mode_ollama": "Ollama",
+    "proxy.route_mode_xiaomi": "Xiaomi",
     "proxy.gpt_upstream_proxy_host_label": "GPT Proxy Host",
     "proxy.gpt_upstream_proxy_host_hint": "HTTP proxy host used for GPT traffic.",
     "proxy.gpt_upstream_proxy_port_label": "GPT Proxy Port",
     "proxy.gpt_upstream_proxy_port_hint": "HTTP proxy port used for GPT traffic.",
     "proxy.ollama_base_url_label": "Ollama Base URL",
     "proxy.ollama_base_url_hint": "Local Ollama endpoint used in Ollama mode.",
+    "proxy.xiaomi_base_url_label": "Xiaomi Base URL",
+    "proxy.xiaomi_base_url_hint": "Xiaomi MiMo OpenAI-compatible endpoint.",
+    "proxy.xiaomi_api_key_label": "Xiaomi API Key",
+    "proxy.xiaomi_api_key_hint": "Used for api-key and Authorization headers in Xiaomi mode.",
+    "proxy.xiaomi_model_label": "Xiaomi Model",
+    "proxy.xiaomi_model_hint": "Xiaomi model used when routing Codex requests. Default: mimo-v2.5-pro.",
     "proxy.request_inspection_enabled_label": "Request Inspection",
     "proxy.request_inspection_enabled_hint": "Capture masked request summaries for route debugging and later subagent analysis.",
     "proxy.request_inspection_retention_limit_label": "Inspection Retention",
@@ -301,6 +316,7 @@
     "dialog.add_account.tab_manual": "Manual Paste",
     "dialog.add_account.tab_current": "Import Current",
     "dialog.add_account.tab_file": "Quick Import",
+    "dialog.add_account.tab_xiaomi": "Xiaomi",
     "dialog.add_account.oauth_desc": "Open browser to complete Codex login authorization, automatically obtain and save Token.",
     "dialog.add_account.oauth_btn": "Start OAuth Login",
     "dialog.add_account.oauth_monitor_title": "OAuth Authorization Monitoring",
@@ -321,6 +337,9 @@
     "dialog.add_account.current_btn": "Import Current Account",
     "dialog.add_account.file_desc": "Select existing OAuth authorization files to import.",
     "dialog.add_account.file_btn": "Select OAuth Files",
+    "dialog.add_account.xiaomi_desc": "Add or overwrite the Xiaomi MiMo API key. Saved keys are never shown.",
+    "dialog.add_account.xiaomi_btn_add": "Save",
+    "dialog.add_account.xiaomi_btn_overwrite": "Edit",
     "dialog.add_account.import_current": "Import Current Logged-in Account",
     "dialog.add_account.import_oauth": "Quick Import Existing OAuth",
     "dialog.add_account.login_new": "Login New Account",
@@ -486,6 +505,10 @@
     "status_code.oauth_session_not_active": "No OAuth session is active",
     "status_code.oauth_callback_submitted": "Callback URL submitted",
     "status_code.oauth_session_busy": "An OAuth session is already in progress",
+    "status_code.xiaomi_api_key_required": "Enter a new Xiaomi API Key",
+    "status_code.xiaomi_account_saved": "Xiaomi account saved",
+    "status_code.xiaomi_account_deleted": "Xiaomi account deleted",
+    "status_code.xiaomi_route_selected": "Xiaomi route selected",
     "status_code.unknown_action": "Unknown action",
     "update.failed": "Update check failed, please try again later",
     "update.latest": "Already up to date",
@@ -1046,7 +1069,22 @@
     "tag.plan_team": "Team",
     "tag.plan_pro": "Pro",
     "tag.plan_unknown": "未知类型",
-    "quota.format_free": "7D {q7} | 重置 {r7}"
+    "quota.format_free": "7D {q7} | 重置 {r7}",
+    "proxy.route_mode_xiaomi": "??",
+    "proxy.xiaomi_base_url_label": "?? Base URL",
+    "proxy.xiaomi_base_url_hint": "?? MiMo ? OpenAI-compatible ?????",
+    "proxy.xiaomi_api_key_label": "?? API Key",
+    "proxy.xiaomi_api_key_hint": "??????? api-key ? Authorization ????",
+    "proxy.xiaomi_model_label": "??????",
+    "proxy.xiaomi_model_hint": "Codex ?????????????????? mimo-v2.5-pro?",
+    "dialog.add_account.tab_xiaomi": "??",
+    "dialog.add_account.xiaomi_desc": "??????? MiMo API Key????? Key ?????",
+    "dialog.add_account.xiaomi_btn_add": "??",
+    "dialog.add_account.xiaomi_btn_overwrite": "??",
+    "status_code.xiaomi_api_key_required": "??????? API Key",
+    "status_code.xiaomi_account_saved": "???????",
+    "status_code.xiaomi_account_deleted": "???????",
+    "status_code.xiaomi_route_selected": "????????",
   };
 
   const dom = {
@@ -1257,6 +1295,16 @@
     ollamaBaseUrlLabel: document.getElementById("ollamaBaseUrlLabel"),
     ollamaBaseUrlInput: document.getElementById("ollamaBaseUrlInput"),
     ollamaBaseUrlHint: document.getElementById("ollamaBaseUrlHint"),
+    xiaomiBaseUrlLabel: document.getElementById("xiaomiBaseUrlLabel"),
+    xiaomiBaseUrlInput: document.getElementById("xiaomiBaseUrlInput"),
+    xiaomiBaseUrlHint: document.getElementById("xiaomiBaseUrlHint"),
+    xiaomiApiKeyLabel: document.getElementById("xiaomiApiKeyLabel"),
+    xiaomiApiKeyInput: document.getElementById("xiaomiApiKeyInput"),
+    xiaomiApiKeyHint: document.getElementById("xiaomiApiKeyHint"),
+    xiaomiModelLabel: document.getElementById("xiaomiModelLabel"),
+    xiaomiModelInput: document.getElementById("xiaomiModelInput"),
+    xiaomiModelList: document.getElementById("xiaomiModelList"),
+    xiaomiModelHint: document.getElementById("xiaomiModelHint"),
     requestInspectionEnabledLabel: document.getElementById("requestInspectionEnabledLabel"),
     requestInspectionEnabledToggle: document.getElementById("requestInspectionEnabledToggle"),
     requestInspectionEnabledHint: document.getElementById("requestInspectionEnabledHint"),
@@ -1390,14 +1438,17 @@
     addTabManualBtn: document.getElementById("addTabManualBtn"),
     addTabCurrentBtn: document.getElementById("addTabCurrentBtn"),
     addTabFileBtn: document.getElementById("addTabFileBtn"),
+    addTabXiaomiBtn: document.getElementById("addTabXiaomiBtn"),
     addPaneOAuth: document.getElementById("addPaneOAuth"),
     addPaneManual: document.getElementById("addPaneManual"),
     addPaneCurrent: document.getElementById("addPaneCurrent"),
     addPaneFile: document.getElementById("addPaneFile"),
+    addPaneXiaomi: document.getElementById("addPaneXiaomi"),
     addPaneOAuthDesc: document.getElementById("addPaneOAuthDesc"),
     addPaneManualDesc: document.getElementById("addPaneManualDesc"),
     addPaneCurrentDesc: document.getElementById("addPaneCurrentDesc"),
     addPaneFileDesc: document.getElementById("addPaneFileDesc"),
+    addPaneXiaomiDesc: document.getElementById("addPaneXiaomiDesc"),
     addAccountOAuthBtn: document.getElementById("addAccountOAuthBtn"),
     oauthMonitorPanel: document.getElementById("oauthMonitorPanel"),
     oauthMonitorTitle: document.getElementById("oauthMonitorTitle"),
@@ -1411,6 +1462,7 @@
     addAccountManualImportBtn: document.getElementById("addAccountManualImportBtn"),
     addAccountImportCurrentBtn: document.getElementById("addAccountImportCurrentBtn"),
     addAccountImportOAuthBtn: document.getElementById("addAccountImportOAuthBtn"),
+    addAccountXiaomiSaveBtn: document.getElementById("addAccountXiaomiSaveBtn"),
     manualTokenTextarea: document.getElementById("manualTokenTextarea"),
     addAccountCancelBtn: document.getElementById("addAccountCancelBtn"),
     debugPanel: document.getElementById("debugPanel"),
@@ -1513,6 +1565,10 @@
     gptUpstreamProxyHost: "127.0.0.1",
     gptUpstreamProxyPort: 7890,
     ollamaBaseUrl: "http://127.0.0.1:11434",
+    xiaomiBaseUrl: "https://token-plan-cn.xiaomimimo.com/v1",
+    xiaomiApiKey: "",
+    xiaomiModel: DEFAULT_XIAOMI_MODEL,
+    xiaomiOverwriteMode: false,
     requestInspectionEnabled: true,
     requestInspectionRetentionLimit: 400,
     proxyFixedAccount: "__follow_current__",
@@ -1677,7 +1733,7 @@
   }
 
   function initLanguageIndexFallback() {
-    state.languageIndex = [{ code: "zh-CN", name: "简体中文", file: "zh-CN.json" }];
+    state.languageIndex = [{ code: "zh-CN", name: "�?体中�?, file: "zh-CN.json" }];
   }
 
   function findLanguageMeta(code) {
@@ -1695,15 +1751,15 @@
       state.i18n["tag.current"] = "当前";
       state.i18n["tag.abnormal"] = "异常";
       state.i18n["tag.group_business"] = "企业";
-      state.i18n["tag.group_personal"] = "个人";
-      state.i18n["settings.enable_auto_refresh_quota_label"] = "开启自动刷新额度";
-      state.i18n["settings.enable_auto_refresh_quota_hint"] = "开启后，导入账号时会自动刷新账号类型和额度。";
-      state.i18n["settings.auto_mark_abnormal_accounts_label"] = "自动标记异常账号";
-      state.i18n["settings.auto_mark_abnormal_accounts_hint"] = "开启后，遇到 token 失效或鉴权失败的账号会被标记为异常，并在自动重试时跳过。";
-      state.i18n["status_code.account_abnormal_marked"] = "账号认证已失效，已标记为异常，请重新登录";
-      state.i18n["settings.auto_delete_abnormal_accounts_label"] = "自动删除异常账号";
-      state.i18n["settings.auto_delete_abnormal_accounts_hint"] = "开启后，异常账号会被自动删除。";
-      state.i18n["status_code.account_abnormal_auto_deleted"] = "异常账号已自动删除";
+      state.i18n["tag.group_personal"] = "�?��";
+      state.i18n["settings.enable_auto_refresh_quota_label"] = "�?�?��动刷新�?�?;
+      state.i18n["settings.enable_auto_refresh_quota_hint"] = "�?�?��，�?入账号时会自动刷新账号类型和额度�?;
+      state.i18n["settings.auto_mark_abnormal_accounts_label"] = "�?��标�?异常账号";
+      state.i18n["settings.auto_mark_abnormal_accounts_hint"] = "�?�?��，遇�?token 失效或鉴权失败的账号会�?标�?为异常，并在�?��重试时跳过�??;
+      state.i18n["status_code.account_abnormal_marked"] = "账号认证已失效，已标记为异常，�?重新登录";
+      state.i18n["settings.auto_delete_abnormal_accounts_label"] = "�?��删除异常账号";
+      state.i18n["settings.auto_delete_abnormal_accounts_hint"] = "�?�?��，异常账号会�?��动删除�??;
+      state.i18n["status_code.account_abnormal_auto_deleted"] = "异常账号已自动删�?;
     }
     applyI18n();
     refreshSettingsOptions();
@@ -1915,6 +1971,7 @@
     dom.addPaneManual.classList.toggle("active", state.addAccountTab === "manual");
     dom.addPaneCurrent.classList.toggle("active", state.addAccountTab === "current");
     dom.addPaneFile.classList.toggle("active", state.addAccountTab === "file");
+    if (dom.addPaneXiaomi) dom.addPaneXiaomi.classList.toggle("active", state.addAccountTab === "xiaomi");
   }
 
   function openAddAccountModal() {
@@ -1936,6 +1993,7 @@
     if (!state.oauthFlowActive) {
       dom.oauthCallbackTextarea.value = "";
     }
+    state.xiaomiOverwriteMode = false;
   }
 
   function renderOAuthFlowPanel() {
@@ -2002,20 +2060,20 @@
       const mode = normalizeThemeMode(state.themeMode || "auto");
       if (mode === "auto") {
         dom.quickThemeBtn.textContent = "A";
-        dom.quickThemeBtn.title = "主题: Auto（跟随系统）";
+        dom.quickThemeBtn.title = "主�?: Auto（跟随系统）";
       } else if (mode === "dark") {
-        dom.quickThemeBtn.textContent = "☾";
-        dom.quickThemeBtn.title = "主题: Dark";
+        dom.quickThemeBtn.textContent = "�?;
+        dom.quickThemeBtn.title = "主�?: Dark";
       } else {
-        dom.quickThemeBtn.textContent = "☼";
-        dom.quickThemeBtn.title = "主题: Light";
+        dom.quickThemeBtn.textContent = "�?;
+        dom.quickThemeBtn.title = "主�?: Light";
       }
     }
     if (dom.quickLangBtn) {
       const raw = String(state.currentLanguage || "zh-CN").trim();
       const shortCode = raw.split("-")[0].toUpperCase();
       dom.quickLangBtn.textContent = shortCode || "ZH";
-      dom.quickLangBtn.title = `语言: ${raw || "zh-CN"}`;
+      dom.quickLangBtn.title = `�?��: ${raw || "zh-CN"}`;
     }
     renderQuickLangMenu();
   }
@@ -2043,7 +2101,7 @@
         <button class="quick-menu-item ${isActive ? "active" : ""}" data-quick-lang="${escapeHtml(code)}">
           <span class="quick-menu-code">${escapeHtml(shortCode)}</span>
           <span class="quick-menu-name">${escapeHtml(name)}</span>
-          <span class="quick-menu-dot">${isActive ? "•" : ""}</span>
+          <span class="quick-menu-dot">${isActive ? "�? : ""}</span>
         </button>
       `;
     }).join("");
@@ -2261,6 +2319,12 @@
     if (dom.ollamaBaseUrlInput) {
       dom.ollamaBaseUrlInput.value = state.ollamaBaseUrl || "http://127.0.0.1:11434";
     }
+    if (dom.xiaomiBaseUrlInput) {
+      dom.xiaomiBaseUrlInput.value = state.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1";
+    }
+    if (dom.xiaomiModelInput) {
+      dom.xiaomiModelInput.value = state.xiaomiModel || DEFAULT_XIAOMI_MODEL;
+    }
     if (dom.requestInspectionEnabledToggle) {
       dom.requestInspectionEnabledToggle.checked = !!state.requestInspectionEnabled;
     }
@@ -2272,7 +2336,8 @@
     renderProxyStatus();
     renderProxyFixedAccountOptions();
     renderApiModelOptions();
-    renderCustomModels();
+    renderXiaomiModelOptions();
+    renderCustomModelsList();
     refreshCustomSelects();
     switchSettingsSubTab(state.settingsSubTab);
   }
@@ -2404,10 +2469,12 @@
     dom.addTabManualBtn.textContent = t("dialog.add_account.tab_manual");
     dom.addTabCurrentBtn.textContent = t("dialog.add_account.tab_current");
     dom.addTabFileBtn.textContent = t("dialog.add_account.tab_file");
+    if (dom.addTabXiaomiBtn) dom.addTabXiaomiBtn.textContent = t("dialog.add_account.tab_xiaomi");
     dom.addPaneOAuthDesc.textContent = t("dialog.add_account.oauth_desc");
     dom.addPaneManualDesc.textContent = t("dialog.add_account.manual_desc");
     dom.addPaneCurrentDesc.textContent = t("dialog.add_account.current_desc");
     dom.addPaneFileDesc.textContent = t("dialog.add_account.file_desc");
+    if (dom.addPaneXiaomiDesc) dom.addPaneXiaomiDesc.textContent = t("dialog.add_account.xiaomi_desc");
     dom.addAccountOAuthBtn.textContent = t("dialog.add_account.oauth_btn");
     dom.oauthMonitorTitle.textContent = t("dialog.add_account.oauth_monitor_title");
     dom.oauthAuthLinkLabel.textContent = t("dialog.add_account.oauth_link_label");
@@ -2418,6 +2485,9 @@
     dom.addAccountManualImportBtn.textContent = t("dialog.add_account.manual_btn");
     dom.addAccountImportCurrentBtn.textContent = t("dialog.add_account.current_btn");
     dom.addAccountImportOAuthBtn.textContent = t("dialog.add_account.file_btn");
+    if (dom.addAccountXiaomiSaveBtn) {
+      dom.addAccountXiaomiSaveBtn.textContent = t("dialog.add_account.xiaomi_btn_add");
+    }
     dom.addAccountCancelBtn.textContent = t("dialog.common.cancel");
     switchAddAccountTab(state.addAccountTab);
     renderOAuthFlowPanel();
@@ -2470,6 +2540,12 @@
     if (dom.gptUpstreamProxyPortHint) dom.gptUpstreamProxyPortHint.textContent = t("proxy.gpt_upstream_proxy_port_hint");
     if (dom.ollamaBaseUrlLabel) dom.ollamaBaseUrlLabel.textContent = t("proxy.ollama_base_url_label");
     if (dom.ollamaBaseUrlHint) dom.ollamaBaseUrlHint.textContent = t("proxy.ollama_base_url_hint");
+    if (dom.xiaomiBaseUrlLabel) dom.xiaomiBaseUrlLabel.textContent = t("proxy.xiaomi_base_url_label");
+    if (dom.xiaomiBaseUrlHint) dom.xiaomiBaseUrlHint.textContent = t("proxy.xiaomi_base_url_hint");
+    if (dom.xiaomiModelLabel) dom.xiaomiModelLabel.textContent = t("proxy.xiaomi_model_label");
+    if (dom.xiaomiModelHint) dom.xiaomiModelHint.textContent = t("proxy.xiaomi_model_hint");
+    if (dom.xiaomiApiKeyLabel) dom.xiaomiApiKeyLabel.textContent = t("proxy.xiaomi_api_key_label");
+    if (dom.xiaomiApiKeyHint) dom.xiaomiApiKeyHint.textContent = t("proxy.xiaomi_api_key_hint");
     if (dom.requestInspectionEnabledLabel) dom.requestInspectionEnabledLabel.textContent = t("proxy.request_inspection_enabled_label");
     if (dom.requestInspectionEnabledHint) dom.requestInspectionEnabledHint.textContent = t("proxy.request_inspection_enabled_hint");
     if (dom.requestInspectionRetentionLimitLabel) dom.requestInspectionRetentionLimitLabel.textContent = t("proxy.request_inspection_retention_limit_label");
@@ -2497,6 +2573,7 @@
       Array.from(dom.routeModeSelect.options).forEach((opt) => {
         if (opt.value === "gpt") opt.textContent = t("proxy.route_mode_gpt");
         if (opt.value === "ollama") opt.textContent = t("proxy.route_mode_ollama");
+        if (opt.value === "xiaomi") opt.textContent = t("proxy.route_mode_xiaomi");
       });
       dom.routeModeSelect.value = state.routeMode || "gpt";
     }
@@ -2963,6 +3040,20 @@
     renderProxyDefaultModelOptions();
   }
 
+  function getXiaomiModels() {
+    return [...XIAOMI_API_MODELS];
+  }
+
+  function renderXiaomiModelOptions() {
+    if (!dom.xiaomiModelList) return;
+    dom.xiaomiModelList.innerHTML = "";
+    for (const id of getXiaomiModels()) {
+      const option = document.createElement("option");
+      option.value = id;
+      dom.xiaomiModelList.appendChild(option);
+    }
+  }
+
   function renderProxyDefaultModelOptions() {
     if (!dom.proxyDefaultModelSelect) return;
     const models = getAllModels();
@@ -3168,8 +3259,8 @@
     const showRefreshProgress = state.refreshMode === "all" || isCloudQuotaRefreshRunning();
     if (dom.addCurrentBtn) {
       dom.addCurrentBtn.textContent = state.importMode
-        ? "⏳ " + getImportProgressText()
-        : "➕ " + t("toolbar.add_current");
+        ? "�?" + getImportProgressText()
+        : "�?" + t("toolbar.add_current");
     }
     if (dom.refreshBtn) {
       dom.refreshBtn.textContent = "🔄 " + (showRefreshProgress
@@ -3277,7 +3368,7 @@
     dom.bulkRefreshBtn.textContent = "🔄 " + ((state.bulkMode === "refresh" || cloudQuotaRefreshBusy)
       ? getRefreshProgressText(cloudQuotaRefreshBusy ? "cloud" : "batch")
       : t("bulk.refresh"));
-    dom.bulkDeleteBtn.textContent = "🗑️ " + t("bulk.delete");
+    dom.bulkDeleteBtn.textContent = "🗑�?" + t("bulk.delete");
 
     const hasSelection = selectedCount > 0;
     dom.bulkRefreshBtn.disabled = !state.multiSelectMode || !hasSelection || busy || !!state.importMode || !!state.refreshMode || cloudQuotaRefreshBusy;
@@ -3285,7 +3376,9 @@
     dom.bulkRefreshBtn.classList.toggle("loading", state.bulkMode === "refresh" || cloudQuotaRefreshBusy);
     dom.bulkDeleteBtn.classList.toggle("loading", state.bulkMode === "delete");
 
-    const visibleKeys = state.filteredAccounts.map((x) => makeAccountKey(x.name, x.group));
+    const visibleKeys = state.filteredAccounts
+      .filter((x) => x && x.providerType !== "xiaomi")
+      .map((x) => makeAccountKey(x.name, x.group));
     const visibleSelected = visibleKeys.filter((x) => state.selectedAccountKeys.includes(x)).length;
     dom.selectAllCheckbox.checked = state.multiSelectMode && visibleKeys.length > 0 && visibleSelected === visibleKeys.length;
     dom.selectAllCheckbox.indeterminate = state.multiSelectMode && visibleSelected > 0 && visibleSelected < visibleKeys.length;
@@ -3334,11 +3427,15 @@
 
     dom.addAccountManualImportBtn.disabled = disableAny;
     dom.addAccountManualImportBtn.classList.toggle("loading", isManualBusy);
+    if (dom.addAccountXiaomiSaveBtn) {
+      dom.addAccountXiaomiSaveBtn.disabled = disableAny;
+    }
     dom.addAccountCancelBtn.disabled = isCurrentBusy || isManualBusy;
     dom.addTabOAuthBtn.disabled = isOAuthBusy;
     dom.addTabManualBtn.disabled = isOAuthBusy;
     dom.addTabCurrentBtn.disabled = isOAuthBusy;
     dom.addTabFileBtn.disabled = isOAuthBusy;
+    if (dom.addTabXiaomiBtn) dom.addTabXiaomiBtn.disabled = isOAuthBusy;
     renderOAuthFlowPanel();
   }
 
@@ -3395,7 +3492,7 @@
     const raw = String(usageError || "");
     if (raw.startsWith("unknown_plan_type:")) {
       const value = raw.slice("unknown_plan_type:".length) || "(empty)";
-      return `${t("tag.plan_unknown")}：${value}`;
+      return `${t("tag.plan_unknown")}�?{value}`;
     }
     return "";
   }
@@ -3540,7 +3637,7 @@
         <div class="webdav-conflict-item" data-webdav-conflict-index="${index}">
           <div class="webdav-conflict-head">
             <span>${escapeHtml(item.account || "-")}</span>
-            <span class="webdav-conflict-meta">${escapeHtml((item.localGroup || "personal") + " ↔ " + (item.remoteGroup || "personal"))}</span>
+            <span class="webdav-conflict-meta">${escapeHtml((item.localGroup || "personal") + " �?" + (item.remoteGroup || "personal"))}</span>
           </div>
           <div class="webdav-conflict-options">
             <button class="webdav-choice ${winner === "local" ? "active" : ""}" data-webdav-choice="local" data-webdav-conflict-index="${index}">
@@ -3694,10 +3791,13 @@
       proxyApiKey: String(dom.proxyApiKeyInput.value || "").trim(),
       proxyStealthMode: !!state.proxyStealthMode,
       proxyDispatchMode: String(state.proxyDispatchMode || "round_robin"),
-      routeMode: String(state.routeMode || "gpt"),
+      routeMode: normalizeRouteMode(state.routeMode),
       gptUpstreamProxyHost: String(dom.gptUpstreamProxyHostInput?.value || "127.0.0.1").trim(),
       gptUpstreamProxyPort: Math.max(1, Math.min(65535, Number(dom.gptUpstreamProxyPortInput?.value || 7890))),
       ollamaBaseUrl: String(dom.ollamaBaseUrlInput?.value || "http://127.0.0.1:11434").trim(),
+      xiaomiBaseUrl: String(dom.xiaomiBaseUrlInput?.value || "https://token-plan-cn.xiaomimimo.com/v1").trim(),
+      xiaomiApiKey: String(state.xiaomiApiKey || "").trim(),
+      xiaomiModel: String(state.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL,
       requestInspectionEnabled: !!state.requestInspectionEnabled,
       requestInspectionRetentionLimit: Math.max(50, Math.min(2000, Number(dom.requestInspectionRetentionLimitInput?.value || 400))),
       proxyFixedAccount: savedFixedAccount,
@@ -3719,6 +3819,12 @@
       webdavPassword,
       webdavPasswordClear: !webdavPassword && !!state.webdavPasswordClear
     };
+  }
+
+  function normalizeRouteMode(value, fallback = "gpt") {
+    const mode = String(value || fallback || "gpt").toLowerCase();
+    if (mode === "ollama" || mode === "xiaomi") return mode;
+    return "gpt";
   }
 
   function clearPendingConfigState() {
@@ -3754,10 +3860,13 @@
     const msgProxyApiKey = String(msg.proxyApiKey || "").trim();
     const msgProxyStealthMode = msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
     const msgProxyDispatchMode = String(msg.proxyDispatchMode || "round_robin");
-    const msgRouteMode = String(msg.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+    const msgRouteMode = normalizeRouteMode(msg.routeMode);
     const msgGptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
     const msgGptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || 7890)));
     const msgOllamaBaseUrl = String(msg.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+    const msgXiaomiBaseUrl = String(msg.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1").trim() || "https://token-plan-cn.xiaomimimo.com/v1";
+    const msgXiaomiApiKey = String(msg.xiaomiApiKey || "").trim();
+    const msgXiaomiModel = String(msg.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL;
     const msgRequestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
     const msgRequestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || 400)));
     const msgProxyFixedAccount = normalizeSavedProxyFixedAccount(msg.proxyFixedAccount);
@@ -3797,10 +3906,13 @@
       && msgProxyApiKey === String(pending.proxyApiKey || "").trim()
       && msgProxyStealthMode === !!pending.proxyStealthMode
       && msgProxyDispatchMode === String(pending.proxyDispatchMode || "round_robin")
-      && msgRouteMode === String(pending.routeMode || "gpt")
+      && msgRouteMode === normalizeRouteMode(pending.routeMode)
       && msgGptUpstreamProxyHost === String(pending.gptUpstreamProxyHost || "127.0.0.1").trim()
       && msgGptUpstreamProxyPort === Math.max(1, Math.min(65535, Number(pending.gptUpstreamProxyPort || 7890)))
       && msgOllamaBaseUrl === String(pending.ollamaBaseUrl || "http://127.0.0.1:11434").trim()
+      && msgXiaomiBaseUrl === String(pending.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1").trim()
+      && msgXiaomiApiKey === String(pending.xiaomiApiKey || "").trim()
+      && msgXiaomiModel === (String(pending.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL)
       && msgRequestInspectionEnabled === !!pending.requestInspectionEnabled
       && msgRequestInspectionRetentionLimit === Math.max(50, Math.min(2000, Number(pending.requestInspectionRetentionLimit || 400)))
       && msgProxyFixedAccount === normalizeSavedProxyFixedAccount(pending.proxyFixedAccount)
@@ -3844,6 +3956,24 @@
     }, 250);
   }
 
+  function setCodexLocalProxyMode(enabled) {
+    if (state.saveConfigTimer) {
+      clearTimeout(state.saveConfigTimer);
+      state.saveConfigTimer = null;
+    }
+    clearPendingConfigState();
+    const active = !!enabled;
+    state.codexLocalProxyMode = active;
+    state.proxyStealthMode = active;
+    if (dom.proxyStealthModeToggle) {
+      dom.proxyStealthModeToggle.checked = active;
+    }
+    if (dom.stealthTomlSection) {
+      dom.stealthTomlSection.style.display = active ? "" : "none";
+    }
+    post("set_codex_local_proxy_mode", { enabled: active });
+  }
+
   function flushPendingConfigWrite() {
     if (!state.configLoaded) return;
     if (state.saveConfigTimer) {
@@ -3855,6 +3985,73 @@
     if (state.hasPendingConfigWrite) {
       saveConfigNow();
     }
+  }
+
+  function hasXiaomiAccount() {
+    return String(state.xiaomiApiKey || "").trim().length > 0;
+  }
+
+  function buildXiaomiAccountRecord() {
+    if (!hasXiaomiAccount()) return null;
+    return {
+      name: "Xiaomi MiMo",
+      group: "xiaomi",
+      providerType: "xiaomi",
+      planType: "xiaomi",
+      model: String(state.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL,
+      usageOk: false,
+      usageError: "api_key_configured",
+      isCurrent: state.routeMode === "xiaomi",
+      updatedAt: "-",
+      quota5hRemainingPercent: -1,
+      quota7dRemainingPercent: -1,
+      quota5hResetAfterSeconds: -1,
+      quota7dResetAfterSeconds: -1
+    };
+  }
+
+  function getAccountManagementRows() {
+    const rows = Array.isArray(state.accounts) ? [...state.accounts] : [];
+    const xiaomi = buildXiaomiAccountRecord();
+    if (xiaomi) rows.push(xiaomi);
+    return rows;
+  }
+
+  function openXiaomiAccountPane() {
+    state.xiaomiOverwriteMode = hasXiaomiAccount();
+    if (dom.xiaomiBaseUrlInput) {
+      dom.xiaomiBaseUrlInput.value = state.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1";
+    }
+    if (dom.xiaomiModelInput) {
+      dom.xiaomiModelInput.value = state.xiaomiModel || DEFAULT_XIAOMI_MODEL;
+    }
+    if (dom.xiaomiApiKeyInput) {
+      dom.xiaomiApiKeyInput.value = "";
+    }
+    openAddAccountModal();
+    switchAddAccountTab("xiaomi");
+    setTimeout(() => {
+      if (dom.xiaomiApiKeyInput) dom.xiaomiApiKeyInput.focus();
+    }, 10);
+  }
+
+  function saveXiaomiAccountFromForm() {
+    const key = String(dom.xiaomiApiKeyInput?.value || "").trim();
+    if (!key && !hasXiaomiAccount()) {
+      showToast(t("status_code.xiaomi_api_key_required"), "warning");
+      if (dom.xiaomiApiKeyInput) dom.xiaomiApiKeyInput.focus();
+      return;
+    }
+    const model = String(dom.xiaomiModelInput?.value || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL;
+    state.xiaomiBaseUrl = String(dom.xiaomiBaseUrlInput?.value || "https://token-plan-cn.xiaomimimo.com/v1").trim() || "https://token-plan-cn.xiaomimimo.com/v1";
+    state.xiaomiModel = model;
+    if (key) state.xiaomiApiKey = key;
+    if (dom.xiaomiApiKeyInput) dom.xiaomiApiKeyInput.value = "";
+    saveConfigNow();
+    applySearch();
+    renderProxyStatus();
+    closeAddAccountModal(true);
+    showToast(t("status_code.xiaomi_account_saved"), "success");
   }
 
   function renderRefreshCountdowns() {
@@ -3887,21 +4084,22 @@
     const cloudQuotaRefreshBusy = isCloudQuotaRefreshRunning();
 
     dom.accountsBody.innerHTML = state.filteredAccounts.map((item) => {
+      const isXiaomiAccount = item.providerType === "xiaomi";
       const accountKey = makeAccountKey(item.name, item.group);
       const isThisRefreshing = state.refreshMode === "account" && state.refreshTargetKey === accountKey;
-      const disableRefreshAction = state.refreshMode === "all" || isThisRefreshing || !!state.importMode || bulkBusy || cloudQuotaRefreshBusy;
+      const disableRefreshAction = isXiaomiAccount || state.refreshMode === "all" || isThisRefreshing || !!state.importMode || bulkBusy || cloudQuotaRefreshBusy;
       const disableRowAction = bulkBusy;
       const normalizedPlanType = normalizePlanType(item.planType);
       const normalizedGroup = normalizeGroupValue(item.group);
-      const planLabel = formatPlanTypeLabel(item.planType);
+      const planLabel = isXiaomiAccount ? "MiMo" : formatPlanTypeLabel(item.planType);
       const planClass = normalizedPlanType || "unknown";
-      const showGroupTag = item.abnormal
+      const showGroupTag = isXiaomiAccount || item.abnormal
         || normalizedGroup === "personal"
         || normalizedGroup === "business"
         || !normalizedPlanType
         || normalizedGroup !== normalizedPlanType;
-      const groupTagLabel = item.abnormal ? t("tag.abnormal") : formatGroupLabel(normalizedGroup);
-      const groupTagClass = item.abnormal ? "abnormal" : `group ${normalizedGroup}`;
+      const groupTagLabel = isXiaomiAccount ? "Xiaomi" : (item.abnormal ? t("tag.abnormal") : formatGroupLabel(normalizedGroup));
+      const groupTagClass = isXiaomiAccount ? "group xiaomi" : (item.abnormal ? "abnormal" : `group ${normalizedGroup}`);
       const isFreePlan = normalizedPlanType === "free";
       const freeQ7Value = Number(item.quota7dRemainingPercent) >= 0
         ? item.quota7dRemainingPercent
@@ -3917,7 +4115,7 @@
       return `
       <tr>
         <td class="select-col">
-          <input class="row-select ${state.multiSelectMode ? "is-visible" : "is-hidden"}" type="checkbox" data-select-account="1" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" ${checked ? "checked" : ""} ${!state.multiSelectMode || bulkBusy ? "disabled" : ""} />
+          <input class="row-select ${state.multiSelectMode && !isXiaomiAccount ? "is-visible" : "is-hidden"}" type="checkbox" data-select-account="1" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" ${checked ? "checked" : ""} ${!state.multiSelectMode || bulkBusy || isXiaomiAccount ? "disabled" : ""} />
         </td>
         <td>
           <div class="account-cell" title="${escapeHtml(item.name)}">
@@ -3929,8 +4127,10 @@
         </td>
         <td>
           <div class="quota-box">
-            <span class="quota-name">Codex</span>
-            ${item.usageOk
+            <span class="quota-name">${escapeHtml(isXiaomiAccount ? "Xiaomi MiMo" : "Codex")}</span>
+            ${isXiaomiAccount
+          ? escapeHtml(item.model ? `Model: ${item.model}` : "API Key configured")
+          : item.usageOk
           ? escapeHtml(
             isFreePlan
               ? t("quota.format_free", {
@@ -3950,10 +4150,14 @@
         <td>${escapeHtml(item.updatedAt || "-")}</td>
         <td class="actions-col">
           <div class="actions">
-            <button class="btn-action switch" data-action="switch" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.switch_title"))}" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.switch"))}</button>
+            ${isXiaomiAccount
+          ? `<button class="btn-action switch" data-action="switch_xiaomi" data-name="${escapeHtml(item.name)}" data-group="xiaomi" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.switch"))}</button>
+            <button class="btn-action rename" data-action="edit_xiaomi_key" data-name="${escapeHtml(item.name)}" data-group="xiaomi" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("dialog.add_account.xiaomi_btn_overwrite"))}</button>
+            <button class="btn-action delete" data-action="delete_xiaomi" data-name="${escapeHtml(item.name)}" data-group="xiaomi" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.delete"))}</button>`
+          : `<button class="btn-action switch" data-action="switch" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.switch_title"))}" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.switch"))}</button>
             <button class="btn-action rename" data-action="rename" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.rename_title"))}" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.rename"))}</button>
             <button class="btn-action refresh ${isThisRefreshing ? "loading" : ""}" data-action="refresh" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.refresh_title"))}" ${disableRefreshAction ? "disabled" : ""}>${escapeHtml(t("action.refresh"))}</button>
-            <button class="btn-action delete" data-action="delete" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.delete_title"))}" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.delete"))}</button>
+            <button class="btn-action delete" data-action="delete" data-name="${escapeHtml(item.name)}" data-group="${escapeHtml(item.group || "personal")}" title="${escapeHtml(t("action.delete_title"))}" ${disableRowAction ? "disabled" : ""}>${escapeHtml(t("action.delete"))}</button>`}
           </div>
         </td>
       </tr>
@@ -3969,7 +4173,7 @@
 
   function applySearch() {
     const q = dom.searchInput.value.trim().toLowerCase();
-    let list = [...state.accounts];
+    let list = getAccountManagementRows();
     if (state.groupFilter !== "all") list = list.filter((x) => normalizePlanType(x.planType) === state.groupFilter);
     state.filteredAccounts = !q ? list : list.filter((x) => String(x.name || "").toLowerCase().includes(q));
     applyCountText();
@@ -4200,7 +4404,7 @@
     }
     if (dom.routeModeSelect) {
       dom.routeModeSelect.addEventListener("change", () => {
-        state.routeMode = String(dom.routeModeSelect.value || "gpt");
+        state.routeMode = normalizeRouteMode(dom.routeModeSelect.value);
         queueSaveConfig();
       });
     }
@@ -4213,6 +4417,9 @@
     if (dom.ollamaBaseUrlInput) {
       dom.ollamaBaseUrlInput.addEventListener("change", queueSaveConfig);
     }
+    if (dom.xiaomiBaseUrlInput) {
+      dom.xiaomiBaseUrlInput.addEventListener("change", queueSaveConfig);
+    }
     if (dom.requestInspectionEnabledToggle) {
       dom.requestInspectionEnabledToggle.addEventListener("change", () => {
         state.requestInspectionEnabled = !!dom.requestInspectionEnabledToggle.checked;
@@ -4223,11 +4430,7 @@
       dom.requestInspectionRetentionLimitInput.addEventListener("change", queueSaveConfig);
     }
     dom.proxyStealthModeToggle.addEventListener("change", () => {
-      state.proxyStealthMode = dom.proxyStealthModeToggle.checked;
-      if (dom.stealthTomlSection) {
-        dom.stealthTomlSection.style.display = state.proxyStealthMode ? "" : "none";
-      }
-      queueSaveConfig();
+      setCodexLocalProxyMode(dom.proxyStealthModeToggle.checked);
     });
     if (dom.stealthTomlTextarea) {
       dom.stealthTomlTextarea.addEventListener("input", () => {
@@ -4415,7 +4618,9 @@
 
     dom.selectAllCheckbox.addEventListener("change", () => {
       if (!state.multiSelectMode || state.bulkMode) return;
-      const visibleKeys = state.filteredAccounts.map((x) => makeAccountKey(x.name, x.group));
+      const visibleKeys = state.filteredAccounts
+        .filter((x) => x && x.providerType !== "xiaomi")
+        .map((x) => makeAccountKey(x.name, x.group));
       const selectedSet = new Set(state.selectedAccountKeys);
       if (dom.selectAllCheckbox.checked) {
         visibleKeys.forEach((key) => selectedSet.add(key));
@@ -4472,7 +4677,29 @@
       const name = target.getAttribute("data-name");
       const group = target.getAttribute("data-group") || "personal";
       if (!name) return;
-      if (action === "switch") {
+      if (action === "switch_xiaomi") {
+        state.routeMode = "xiaomi";
+        if (dom.routeModeSelect) dom.routeModeSelect.value = "xiaomi";
+        saveConfigNow();
+        applySearch();
+        showToast(t("status_code.xiaomi_route_selected"), "success");
+      } else if (action === "edit_xiaomi_key") {
+        openXiaomiAccountPane();
+      } else if (action === "delete_xiaomi") {
+        openConfirm({
+          title: t("dialog.delete.title"),
+          message: t("dialog.delete.message", { name }),
+          onConfirm: () => {
+            state.xiaomiApiKey = "";
+            state.xiaomiModel = DEFAULT_XIAOMI_MODEL;
+            if (dom.xiaomiApiKeyInput) dom.xiaomiApiKeyInput.value = "";
+            if (dom.xiaomiModelInput) dom.xiaomiModelInput.value = DEFAULT_XIAOMI_MODEL;
+            saveConfigNow();
+            applySearch();
+            showToast(t("status_code.xiaomi_account_deleted"), "success");
+          }
+        });
+      } else if (action === "switch") {
         const ide = getIdeDisplayName(state.currentIdeExe);
         const message = state.proxyStealthMode
           ? t("confirm.switch_proxy_mode", { name, ide })
@@ -4753,6 +4980,12 @@
       setImportBusy("oauth");
       post("import_auth_json");
     });
+    if (dom.addAccountXiaomiSaveBtn) {
+      dom.addAccountXiaomiSaveBtn.addEventListener("click", () => {
+        if (state.importMode) return;
+        saveXiaomiAccountFromForm();
+      });
+    }
 
     dom.confirmCancelBtn.addEventListener("click", () => closeConfirm(true));
     dom.confirmModal.addEventListener("click", (e) => {
@@ -5251,10 +5484,13 @@
             || msg.proxyStealthMode === true || msg.proxyStealthMode === "true";
           state.proxyStealthMode = state.codexLocalProxyMode;
           state.proxyDispatchMode = String(msg.proxyDispatchMode || "round_robin");
-          state.routeMode = String(msg.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+          state.routeMode = normalizeRouteMode(msg.routeMode);
           state.gptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
           state.gptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || 7890)));
           state.ollamaBaseUrl = String(msg.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+          state.xiaomiBaseUrl = String(msg.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1").trim() || "https://token-plan-cn.xiaomimimo.com/v1";
+          state.xiaomiApiKey = String(msg.xiaomiApiKey || "").trim();
+          state.xiaomiModel = String(msg.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL;
           state.requestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
           state.requestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || 400)));
           state.proxyFixedAccount = normalizeSavedProxyFixedAccount(msg.proxyFixedAccount);
@@ -5299,6 +5535,7 @@
           }
           state.configLoaded = true;
           refreshSettingsOptions();
+          applySearch();
           renderRefreshCountdowns();
         } else {
           if (state.hasPendingConfigWrite && !configMatchesPending(msg)) {
@@ -5329,10 +5566,13 @@
           state.proxyStealthMode = state.codexLocalProxyMode;
           if (typeof msg.stealthTomlExtra === "string") state.stealthTomlExtra = msg.stealthTomlExtra;
           state.proxyDispatchMode = String(msg.proxyDispatchMode || state.proxyDispatchMode || "round_robin");
-          state.routeMode = String(msg.routeMode || state.routeMode || "gpt").toLowerCase() === "ollama" ? "ollama" : "gpt";
+          state.routeMode = normalizeRouteMode(msg.routeMode || state.routeMode || "gpt");
           state.gptUpstreamProxyHost = String(msg.gptUpstreamProxyHost || state.gptUpstreamProxyHost || "127.0.0.1").trim() || "127.0.0.1";
           state.gptUpstreamProxyPort = Math.max(1, Math.min(65535, Number(msg.gptUpstreamProxyPort || state.gptUpstreamProxyPort || 7890)));
           state.ollamaBaseUrl = String(msg.ollamaBaseUrl || state.ollamaBaseUrl || "http://127.0.0.1:11434").trim() || "http://127.0.0.1:11434";
+          state.xiaomiBaseUrl = String(msg.xiaomiBaseUrl || state.xiaomiBaseUrl || "https://token-plan-cn.xiaomimimo.com/v1").trim() || "https://token-plan-cn.xiaomimimo.com/v1";
+          state.xiaomiApiKey = String(msg.xiaomiApiKey || state.xiaomiApiKey || "").trim();
+          state.xiaomiModel = String(msg.xiaomiModel || state.xiaomiModel || DEFAULT_XIAOMI_MODEL).trim() || DEFAULT_XIAOMI_MODEL;
           state.requestInspectionEnabled = msg.requestInspectionEnabled !== false && msg.requestInspectionEnabled !== "false";
           state.requestInspectionRetentionLimit = Math.max(50, Math.min(2000, Number(msg.requestInspectionRetentionLimit || state.requestInspectionRetentionLimit || 400)));
           state.proxyFixedAccount = normalizeSavedProxyFixedAccount(
@@ -5370,6 +5610,7 @@
             switchTab(state.currentTab || "dashboard");
           }
           refreshSettingsOptions();
+          applySearch();
           renderRefreshCountdowns();
         }
         return;

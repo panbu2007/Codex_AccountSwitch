@@ -76,6 +76,7 @@ namespace
                                            std::wstring &error);
   bool RestoreCodexProfileFromStealthBackup(std::wstring &error);
   bool SyncStealthProxyEnvironment(const AppConfig &cfg, std::wstring &error);
+  bool IsCodexProfileUsingLocalProxyMode();
   std::wstring ParseJwtPayload(const std::wstring &token);
   bool IsLikelyValidAuthJson(const std::wstring &json);
   std::wstring UrlEncode(const std::wstring &value);
@@ -134,6 +135,7 @@ namespace
   constexpr UINT kTrayCmdExitApp = 32003;
   constexpr UINT kTrayCmdRouteGpt = 32004;
   constexpr UINT kTrayCmdRouteOllama = 32005;
+  constexpr UINT kTrayCmdRouteXiaomi = 32006;
   constexpr UINT kTrayCmdSwitchBase = 32100;
   constexpr UINT kTrayCmdSwitchMax = 32299;
   constexpr DWORD kRefreshAllThrottleMs = 100;
@@ -656,6 +658,9 @@ namespace
     std::wstring gptUpstreamProxyHost = L"127.0.0.1";
     int gptUpstreamProxyPort = 7890;
     std::wstring ollamaBaseUrl = L"http://127.0.0.1:11434";
+    std::wstring xiaomiBaseUrl = L"https://token-plan-cn.xiaomimimo.com/v1";
+    std::wstring xiaomiApiKey;
+    std::wstring xiaomiModel = L"mimo-v2.5-pro";
     bool requestInspectionEnabled = true;
     int requestInspectionRetentionLimit = 400;
     std::wstring proxyFixedAccount;
@@ -690,6 +695,9 @@ namespace
     snapshot.gptProxyHost = cfg.gptUpstreamProxyHost;
     snapshot.gptProxyPort = cfg.gptUpstreamProxyPort;
     snapshot.ollamaBaseUrl = cfg.ollamaBaseUrl;
+    snapshot.xiaomiBaseUrl = cfg.xiaomiBaseUrl;
+    snapshot.xiaomiApiKey = cfg.xiaomiApiKey;
+    snapshot.xiaomiModel = cfg.xiaomiModel;
     snapshot.requestInspectionEnabled = cfg.requestInspectionEnabled;
     snapshot.requestInspectionRetentionLimit =
         cfg.requestInspectionRetentionLimit;
@@ -699,6 +707,12 @@ namespace
   void SyncRouteStateFromConfig(const AppConfig &cfg)
   {
     cas::InitializeRouteState(BuildRouteStateSnapshot(cfg));
+  }
+
+  std::wstring BuildCodexWireApiForRouteMode(const std::wstring &routeMode)
+  {
+    return cas::ParseRouteMode(routeMode) == cas::RouteMode::Xiaomi ? L"chat"
+                                                                    : L"responses";
   }
 
   HINTERNET OpenCodexProxySession(const std::wstring &userAgent)
@@ -724,6 +738,15 @@ namespace
     }
 
     SyncRouteStateFromConfig(cfg);
+    if (IsCodexProfileUsingLocalProxyMode())
+    {
+      std::wstring error;
+      ApplyStealthProxyModeToCodexProfile(cfg, error);
+      if (!error.empty())
+      {
+        DebugLogLine(L"proxy.stealth", L"route mode profile refresh failed: " + error);
+      }
+    }
     return true;
   }
 
@@ -2628,6 +2651,63 @@ namespace
     return out;
   }
 
+  std::wstring ReplaceJsonStringFieldValue(const std::wstring &json,
+                                           const std::wstring &key,
+                                           const std::wstring &value)
+  {
+    const std::wstring pattern = L"\"" + key + L"\"";
+    const size_t keyPos = json.find(pattern);
+    if (keyPos == std::wstring::npos)
+    {
+      return json;
+    }
+
+    const size_t colonPos = json.find(L':', keyPos + pattern.size());
+    if (colonPos == std::wstring::npos)
+    {
+      return json;
+    }
+
+    size_t firstQuotePos = colonPos + 1;
+    while (firstQuotePos < json.size() && iswspace(json[firstQuotePos]))
+    {
+      ++firstQuotePos;
+    }
+    if (firstQuotePos >= json.size() || json[firstQuotePos] != L'"')
+    {
+      return json;
+    }
+
+    size_t endQuotePos = firstQuotePos + 1;
+    bool escape = false;
+    while (endQuotePos < json.size())
+    {
+      const wchar_t ch = json[endQuotePos];
+      if (escape)
+      {
+        escape = false;
+        ++endQuotePos;
+        continue;
+      }
+      if (ch == L'\\')
+      {
+        escape = true;
+        ++endQuotePos;
+        continue;
+      }
+      if (ch == L'"')
+      {
+        std::wstring out = json.substr(0, firstQuotePos + 1);
+        out += EscapeJsonString(value);
+        out += json.substr(endQuotePos);
+        return out;
+      }
+      ++endQuotePos;
+    }
+
+    return json;
+  }
+
   bool ReadUtf8File(const fs::path &file, std::wstring &out)
   {
     std::ifstream in(file, std::ios::binary);
@@ -2853,6 +2933,12 @@ namespace
         ExtractJsonIntField(json, L"gptUpstreamProxyPort", 7890);
     const std::wstring ollamaBaseUrl =
         ExtractJsonField(json, L"ollamaBaseUrl");
+    const std::wstring xiaomiBaseUrl =
+        ExtractJsonField(json, L"xiaomiBaseUrl");
+    const std::wstring xiaomiApiKey =
+        ExtractJsonField(json, L"xiaomiApiKey");
+    const std::wstring xiaomiModel =
+        ExtractJsonField(json, L"xiaomiModel");
     const bool requestInspectionEnabled =
         ExtractJsonBoolField(json, L"requestInspectionEnabled", true);
     const int requestInspectionRetentionLimit = ExtractJsonIntField(
@@ -2970,6 +3056,9 @@ namespace
       routeSettings.gptProxyHost = gptUpstreamProxyHost;
       routeSettings.gptProxyPort = gptUpstreamProxyPort;
       routeSettings.ollamaBaseUrl = ollamaBaseUrl;
+      routeSettings.xiaomiBaseUrl = xiaomiBaseUrl;
+      routeSettings.xiaomiApiKey = xiaomiApiKey;
+      routeSettings.xiaomiModel = xiaomiModel;
       routeSettings.requestInspectionEnabled = requestInspectionEnabled;
       routeSettings.requestInspectionRetentionLimit =
           requestInspectionRetentionLimit;
@@ -2978,6 +3067,9 @@ namespace
       out.gptUpstreamProxyHost = routeSettings.gptProxyHost;
       out.gptUpstreamProxyPort = routeSettings.gptProxyPort;
       out.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+      out.xiaomiBaseUrl = routeSettings.xiaomiBaseUrl;
+      out.xiaomiApiKey = routeSettings.xiaomiApiKey;
+      out.xiaomiModel = routeSettings.xiaomiModel;
       out.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
       out.requestInspectionRetentionLimit =
           routeSettings.requestInspectionRetentionLimit;
@@ -3062,6 +3154,9 @@ namespace
         routeSettings.gptProxyHost = tmp.gptUpstreamProxyHost;
         routeSettings.gptProxyPort = tmp.gptUpstreamProxyPort;
         routeSettings.ollamaBaseUrl = tmp.ollamaBaseUrl;
+        routeSettings.xiaomiBaseUrl = tmp.xiaomiBaseUrl;
+        routeSettings.xiaomiApiKey = tmp.xiaomiApiKey;
+        routeSettings.xiaomiModel = tmp.xiaomiModel;
         routeSettings.requestInspectionEnabled = tmp.requestInspectionEnabled;
         routeSettings.requestInspectionRetentionLimit =
             tmp.requestInspectionRetentionLimit;
@@ -3070,6 +3165,9 @@ namespace
         tmp.gptUpstreamProxyHost = routeSettings.gptProxyHost;
         tmp.gptUpstreamProxyPort = routeSettings.gptProxyPort;
         tmp.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+        tmp.xiaomiBaseUrl = routeSettings.xiaomiBaseUrl;
+        tmp.xiaomiApiKey = routeSettings.xiaomiApiKey;
+        tmp.xiaomiModel = routeSettings.xiaomiModel;
         tmp.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
         tmp.requestInspectionRetentionLimit =
             routeSettings.requestInspectionRetentionLimit;
@@ -3136,6 +3234,12 @@ namespace
     ss << L"  \"gptUpstreamProxyPort\": " << cfg.gptUpstreamProxyPort
        << L",\n";
     ss << L"  \"ollamaBaseUrl\": \"" << EscapeJsonString(cfg.ollamaBaseUrl)
+       << L"\",\n";
+    ss << L"  \"xiaomiBaseUrl\": \"" << EscapeJsonString(cfg.xiaomiBaseUrl)
+       << L"\",\n";
+    ss << L"  \"xiaomiApiKey\": \"" << EscapeJsonString(cfg.xiaomiApiKey)
+       << L"\",\n";
+    ss << L"  \"xiaomiModel\": \"" << EscapeJsonString(cfg.xiaomiModel)
        << L"\",\n";
     ss << L"  \"requestInspectionEnabled\": "
        << (cfg.requestInspectionEnabled ? L"true" : L"false") << L",\n";
@@ -3334,6 +3438,7 @@ namespace
   std::wstring BuildStealthCodexToml(const std::wstring &origin,
                                      const std::wstring &providerBaseUrl,
                                      const std::wstring &projectBaseUrl,
+                                     const std::wstring &wireApi,
                                      const std::wstring &extraToml = L"")
   {
     std::wstring normalized = origin;
@@ -3467,7 +3572,7 @@ namespace
           L"[model_providers.custom]\n"
           L"name = \"custom\"\n"
           L"base_url = \"{{PROXY_URL}}\"\n"
-          L"wire_api = \"responses\"\n"
+          L"wire_api = \"{{WIRE_API}}\"\n"
           L"requires_openai_auth = false";
     }
 
@@ -3487,6 +3592,15 @@ namespace
       {
         templateContent.replace(pos, 14, projectBaseUrl);
         pos += projectBaseUrl.size();
+      }
+    }
+    {
+      size_t pos = 0;
+      while ((pos = templateContent.find(L"{{WIRE_API}}", pos)) !=
+             std::wstring::npos)
+      {
+        templateContent.replace(pos, 12, wireApi);
+        pos += wireApi.size();
       }
     }
 
@@ -3716,9 +3830,10 @@ namespace
     const std::wstring projectBaseUrl =
         L"http://127.0.0.1:" + std::to_wstring(safePort);
     const std::wstring providerBaseUrl = projectBaseUrl + L"/v1";
+    const std::wstring wireApi = BuildCodexWireApiForRouteMode(cfg.routeMode);
     const std::wstring patchedToml =
         BuildStealthCodexToml(existingToml, providerBaseUrl, projectBaseUrl,
-                              cfg.stealthTomlExtra);
+                              wireApi, cfg.stealthTomlExtra);
     if (!WriteUtf8File(tomlPath, patchedToml))
     {
       error = L"write_toml_failed";
@@ -10072,6 +10187,10 @@ namespace
     {
       return BuildOllamaUpstreamLabel(routeState.ollamaBaseUrl);
     }
+    if (routeState.routeMode == cas::RouteMode::Xiaomi)
+    {
+      return BuildOllamaUpstreamLabel(routeState.xiaomiBaseUrl);
+    }
     return cas::BuildNamedProxyString(routeState);
   }
 
@@ -12888,7 +13007,7 @@ namespace
     const std::wstring routeModeText =
         cas::RouteModeToConfigValue(routeState.routeMode);
     const std::wstring upstreamText = BuildRouteUpstreamLabel(routeState);
-    const std::wstring inspectionSummary =
+    std::wstring inspectionSummary =
         BuildInspectionSummary(routeState, headers, body);
     const auto startedAt = std::chrono::steady_clock::now();
     int inputTokens = -1;
@@ -12915,8 +13034,11 @@ namespace
       trafficMeta->method = ToLowerWide(FromUtf8(method));
       trafficMeta->model = reqModel;
       trafficMeta->protocol = protocol;
-      trafficMeta->account =
-          routeState.routeMode == cas::RouteMode::Ollama ? L"ollama" : L"-";
+      trafficMeta->account = routeState.routeMode == cas::RouteMode::Ollama
+                                 ? L"ollama"
+                                 : (routeState.routeMode == cas::RouteMode::Xiaomi
+                                        ? L"xiaomi"
+                                        : L"-");
       trafficMeta->path = FromUtf8(path);
       trafficMeta->routeMode = routeModeText;
       trafficMeta->upstream = upstreamText;
@@ -13000,6 +13122,77 @@ namespace
           upstream.contentType.empty() ? L"application/json" : upstream.contentType;
       responseBody = std::move(upstream.body);
       accountUsed = L"ollama";
+      const std::wstring responseWide = FromUtf8(responseBody);
+      ParseTokenUsageSmart(responseWide, inputTokens, outputTokens, totalTokens);
+      if (reqModel.empty())
+      {
+        reqModel = ExtractJsonField(responseWide, L"model");
+      }
+      return finalizeReturn(true);
+    }
+
+    if (routeState.routeMode == cas::RouteMode::Xiaomi)
+    {
+      std::wstring methodW = L"POST";
+      if (methodLower == "get")
+      {
+        methodW = L"GET";
+      }
+      else if (methodLower == "post")
+      {
+        methodW = L"POST";
+      }
+      else if (methodLower == "put")
+      {
+        methodW = L"PUT";
+      }
+      else if (methodLower == "delete")
+      {
+        methodW = L"DELETE";
+      }
+      else if (!methodLower.empty())
+      {
+        methodW = FromUtf8(methodLower);
+      }
+
+      std::wstring contentTypeHeader = L"application/json";
+      const auto itContentType = headers.find("content-type");
+      if (itContentType != headers.end() && !itContentType->second.empty())
+      {
+        contentTypeHeader = FromUtf8(itContentType->second);
+      }
+
+      cas::UpstreamResponse upstream;
+      std::string xiaomiBody = body;
+      if (!routeState.xiaomiModel.empty() && !body.empty())
+      {
+        const std::wstring rewritten =
+            ReplaceJsonStringFieldValue(FromUtf8(body), L"model",
+                                        routeState.xiaomiModel);
+        xiaomiBody = WideToUtf8(rewritten);
+        reqModel = routeState.xiaomiModel;
+        inspectionSummary = BuildInspectionSummary(routeState, headers, xiaomiBody);
+      }
+      if (!cas::ForwardRequestToXiaomi(routeState, methodW, FromUtf8(path),
+                                       contentTypeHeader, xiaomiBody, upstream))
+      {
+        statusCode = upstream.error == L"xiaomi_api_key_empty" ? 401 : 502;
+        contentType = L"application/json";
+        const std::wstring message = upstream.error.empty()
+                                         ? L"xiaomi_upstream_failed"
+                                         : upstream.error;
+        responseBody = WideToUtf8(L"{\"error\":{\"message\":\"" +
+                                  EscapeJsonString(message) + L"\"}}");
+        accountUsed = L"xiaomi";
+        return finalizeReturn(true);
+      }
+
+      statusCode =
+          upstream.statusCode > 0 ? static_cast<DWORD>(upstream.statusCode) : 502;
+      contentType =
+          upstream.contentType.empty() ? L"application/json" : upstream.contentType;
+      responseBody = std::move(upstream.body);
+      accountUsed = L"xiaomi";
       const std::wstring responseWide = FromUtf8(responseBody);
       ParseTokenUsageSmart(responseWide, inputTokens, outputTokens, totalTokens);
       if (reqModel.empty())
@@ -14580,7 +14773,11 @@ void WebViewHost::SendConfig(bool firstRun) const
       L",\"gptUpstreamProxyPort\":" +
       std::to_wstring(cfg.gptUpstreamProxyPort) +
       L",\"ollamaBaseUrl\":\"" + EscapeJsonString(cfg.ollamaBaseUrl) +
-      L"\"" + L",\"requestInspectionEnabled\":" +
+      L"\"" + L",\"xiaomiBaseUrl\":\"" +
+      EscapeJsonString(cfg.xiaomiBaseUrl) + L"\"" +
+      L",\"xiaomiApiKey\":\"" + EscapeJsonString(cfg.xiaomiApiKey) + L"\"" +
+      L",\"xiaomiModel\":\"" + EscapeJsonString(cfg.xiaomiModel) + L"\"" +
+      L",\"requestInspectionEnabled\":" +
       std::wstring(cfg.requestInspectionEnabled ? L"true" : L"false") +
       L",\"requestInspectionRetentionLimit\":" +
       std::to_wstring(cfg.requestInspectionRetentionLimit) +
@@ -14771,6 +14968,7 @@ void WebViewHost::ShowTrayContextMenu()
   const std::wstring trayExit = Tr(L"tray.menu.exit", L"退出程序");
   const std::wstring trayRouteGpt = L"Route: GPT";
   const std::wstring trayRouteOllama = L"Route: Ollama";
+  const std::wstring trayRouteXiaomi = L"Route: Xiaomi";
   const std::wstring traySwitch =
       Tr(L"tray.menu.quick_switch", L"快速切换账号");
   const std::wstring trayNoSwitch =
@@ -14789,6 +14987,11 @@ void WebViewHost::ShowTrayContextMenu()
                                ? MF_CHECKED
                                : 0),
               kTrayCmdRouteOllama, trayRouteOllama.c_str());
+  AppendMenuW(menu,
+              MF_STRING | (routeState.routeMode == cas::RouteMode::Xiaomi
+                               ? MF_CHECKED
+                               : 0),
+              kTrayCmdRouteXiaomi, trayRouteXiaomi.c_str());
   AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
   IndexData idx;
@@ -14906,6 +15109,18 @@ bool WebViewHost::HandleTrayCommand(const UINT commandId)
     }
     SendConfig(false);
     SendWebStatus(L"已切换到 Ollama 路由", L"success", L"route_mode_ollama");
+    return true;
+  }
+  if (commandId == kTrayCmdRouteXiaomi)
+  {
+    if (!PersistRouteModeSelection(cas::RouteMode::Xiaomi))
+    {
+      SendWebStatus(L"Xiaomi 路由保存失败", L"error",
+                    L"route_mode_save_failed");
+      return true;
+    }
+    SendConfig(false);
+    SendWebStatus(L"已切换到 Xiaomi 路由", L"success", L"route_mode_xiaomi");
     return true;
   }
   if (commandId >= kTrayCmdSwitchBase && commandId <= kTrayCmdSwitchMax)
@@ -16205,6 +16420,69 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
     return;
   }
 
+  if (action == L"set_codex_local_proxy_mode")
+  {
+    const bool enabled = ExtractJsonBoolField(rawMessage, L"enabled", false);
+    AppConfig cfg;
+    LoadConfig(cfg);
+    cfg.proxyStealthMode = enabled;
+    const bool saved = SaveConfig(cfg);
+
+    bool profileOk = saved;
+    std::wstring profileError;
+    if (saved)
+    {
+      SyncRouteStateFromConfig(cfg);
+      proxyStealthModeEnabled_ = cfg.proxyStealthMode;
+      if (enabled)
+      {
+        profileOk = ApplyStealthProxyModeToCodexProfile(cfg, profileError);
+      }
+      else
+      {
+        profileOk = RestoreCodexProfileFromStealthBackup(profileError);
+      }
+
+      std::wstring envError;
+      if (!SyncStealthProxyEnvironment(cfg, envError))
+      {
+        if (!profileError.empty())
+        {
+          profileError += L"；";
+        }
+        profileError += L"env:" + envError;
+        profileOk = false;
+      }
+    }
+    else
+    {
+      profileError = L"save_config_failed";
+    }
+
+    const bool actualLocalMode = IsCodexProfileUsingLocalProxyMode();
+    if (saved && actualLocalMode != cfg.proxyStealthMode)
+    {
+      cfg.proxyStealthMode = actualLocalMode;
+      SaveConfig(cfg);
+      proxyStealthModeEnabled_ = cfg.proxyStealthMode;
+    }
+    PostAsyncWebJson(hwnd_,
+                     L"{\"type\":\"codex_local_proxy_mode\",\"active\":" +
+                         std::wstring(actualLocalMode ? L"true" : L"false") +
+                         L"}");
+    SendWebStatus(profileOk
+                      ? (enabled ? L"Codex 本地代理模式已启用"
+                                 : L"Codex 本地代理模式已关闭")
+                      : (enabled ? L"Codex 本地代理模式启用失败："
+                                 : L"Codex 本地代理模式关闭失败：") +
+                            profileError,
+                  profileOk ? L"success" : L"error",
+                  profileOk ? L"codex_local_proxy_mode_saved"
+                            : L"codex_local_proxy_mode_failed");
+    SendConfig(false);
+    return;
+  }
+
   if (action == L"set_config")
   {
     const std::wstring language = ExtractJsonField(rawMessage, L"language");
@@ -16264,6 +16542,12 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
         rawMessage.find(L"\"gptUpstreamProxyPort\"") != std::wstring::npos;
     const bool hasOllamaBaseUrl =
         rawMessage.find(L"\"ollamaBaseUrl\"") != std::wstring::npos;
+    const bool hasXiaomiBaseUrl =
+        rawMessage.find(L"\"xiaomiBaseUrl\"") != std::wstring::npos;
+    const bool hasXiaomiApiKey =
+        rawMessage.find(L"\"xiaomiApiKey\"") != std::wstring::npos;
+    const bool hasXiaomiModel =
+        rawMessage.find(L"\"xiaomiModel\"") != std::wstring::npos;
     const bool hasRequestInspectionEnabled =
         rawMessage.find(L"\"requestInspectionEnabled\"") != std::wstring::npos;
     const bool hasRequestInspectionRetentionLimit =
@@ -16360,6 +16644,12 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
         ExtractJsonIntField(rawMessage, L"gptUpstreamProxyPort", -1);
     const std::wstring ollamaBaseUrl =
         UnescapeJsonString(ExtractJsonStringField(rawMessage, L"ollamaBaseUrl"));
+    const std::wstring xiaomiBaseUrl =
+        UnescapeJsonString(ExtractJsonStringField(rawMessage, L"xiaomiBaseUrl"));
+    const std::wstring xiaomiApiKey =
+        UnescapeJsonString(ExtractJsonStringField(rawMessage, L"xiaomiApiKey"));
+    const std::wstring xiaomiModel =
+        UnescapeJsonString(ExtractJsonStringField(rawMessage, L"xiaomiModel"));
     const bool requestInspectionEnabled =
         ExtractJsonBoolField(rawMessage, L"requestInspectionEnabled", true);
     const int requestInspectionRetentionLimit = ExtractJsonIntField(
@@ -16453,7 +16743,9 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
       }
     }
     if (hasRouteMode || hasGptUpstreamProxyHost || hasGptUpstreamProxyPort ||
-        hasOllamaBaseUrl || hasRequestInspectionEnabled ||
+        hasOllamaBaseUrl || hasXiaomiBaseUrl || hasXiaomiApiKey ||
+        hasXiaomiModel ||
+        hasRequestInspectionEnabled ||
         hasRequestInspectionRetentionLimit)
     {
       cas::RouteSettings routeSettings;
@@ -16467,6 +16759,12 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
                                        : cfg.gptUpstreamProxyPort;
       routeSettings.ollamaBaseUrl =
           hasOllamaBaseUrl ? ollamaBaseUrl : cfg.ollamaBaseUrl;
+      routeSettings.xiaomiBaseUrl =
+          hasXiaomiBaseUrl ? xiaomiBaseUrl : cfg.xiaomiBaseUrl;
+      routeSettings.xiaomiApiKey =
+          hasXiaomiApiKey ? xiaomiApiKey : cfg.xiaomiApiKey;
+      routeSettings.xiaomiModel =
+          hasXiaomiModel ? xiaomiModel : cfg.xiaomiModel;
       routeSettings.requestInspectionEnabled =
           hasRequestInspectionEnabled ? requestInspectionEnabled
                                       : cfg.requestInspectionEnabled;
@@ -16479,6 +16777,9 @@ void WebViewHost::HandleWebAction(HWND hwnd, const std::wstring &action,
       cfg.gptUpstreamProxyHost = routeSettings.gptProxyHost;
       cfg.gptUpstreamProxyPort = routeSettings.gptProxyPort;
       cfg.ollamaBaseUrl = routeSettings.ollamaBaseUrl;
+      cfg.xiaomiBaseUrl = routeSettings.xiaomiBaseUrl;
+      cfg.xiaomiApiKey = routeSettings.xiaomiApiKey;
+      cfg.xiaomiModel = routeSettings.xiaomiModel;
       cfg.requestInspectionEnabled = routeSettings.requestInspectionEnabled;
       cfg.requestInspectionRetentionLimit =
           routeSettings.requestInspectionRetentionLimit;
@@ -17269,6 +17570,12 @@ void WebViewHost::Initialize(HWND hwnd)
                 { SaveConfig(saveCfg); })
         .detach();
   }
+  const bool actualCodexLocalProxyMode = IsCodexProfileUsingLocalProxyMode();
+  if (startCfg.proxyStealthMode != actualCodexLocalProxyMode)
+  {
+    startCfg.proxyStealthMode = actualCodexLocalProxyMode;
+    SaveConfig(startCfg);
+  }
   ApplyWindowTitleTheme(hwnd_, startCfg.theme);
   autoRefreshQuotaDisabled_ = !startCfg.enableAutoRefreshQuota;
   g_ProxyAutoMarkAbnormalAccounts = startCfg.autoMarkAbnormalAccounts;
@@ -17482,6 +17789,49 @@ void WebViewHost::Initialize(HWND hwnd)
   }
 }
 
+void WebViewHost::RestoreCodexProfileBeforeExit()
+{
+  if (exitRestoreAttempted_)
+  {
+    return;
+  }
+  exitRestoreAttempted_ = true;
+
+  AppConfig cfg;
+  const bool loaded = LoadConfig(cfg);
+  const bool actualLocalMode = IsCodexProfileUsingLocalProxyMode();
+  const bool savedLocalMode = loaded && cfg.proxyStealthMode;
+  if (!actualLocalMode && !savedLocalMode && !proxyStealthModeEnabled_)
+  {
+    return;
+  }
+
+  std::wstring restoreError;
+  if (actualLocalMode && !RestoreCodexProfileFromStealthBackup(restoreError))
+  {
+    DebugLogLine(L"proxy.stealth",
+                 L"restore before exit failed: " + restoreError);
+    return;
+  }
+
+  AppConfig saveCfg = loaded ? cfg : AppConfig{};
+  saveCfg.proxyStealthMode = false;
+  if (!SaveConfig(saveCfg))
+  {
+    DebugLogLine(L"proxy.stealth",
+                 L"persist proxyStealthMode=false before exit failed");
+  }
+
+  std::wstring envError;
+  if (!SyncStealthProxyEnvironment(saveCfg, envError))
+  {
+    DebugLogLine(L"proxy.stealth",
+                 L"sync env before exit failed: " + envError);
+  }
+
+  proxyStealthModeEnabled_ = false;
+}
+
 void WebViewHost::Resize(HWND hwnd) const
 {
   if (!controller_)
@@ -17496,6 +17846,8 @@ void WebViewHost::Resize(HWND hwnd) const
 
 void WebViewHost::Cleanup()
 {
+  RestoreCodexProfileBeforeExit();
+
   if (g_ProxyRunning.load())
   {
     std::wstring proxyStatus;

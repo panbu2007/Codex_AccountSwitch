@@ -1140,6 +1140,10 @@ body.add-account-modal-open .shell {
   width: min(560px, 100%);
 }
 
+#addAccountModal .modal--wide {
+  width: min(720px, calc(100vw - 32px));
+}
+
 .modal-textarea {
   width: 100%;
   min-height: 120px;
@@ -1765,6 +1769,11 @@ body.add-account-modal-open .shell {
   width: 100% !important;
   font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
   letter-spacing: 0.15px;
+}
+
+.xiaomi-url-input,
+.xiaomi-model-input {
+  width: 100% !important;
 }
 
 .stealth-toml-section {

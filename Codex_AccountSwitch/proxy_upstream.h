@@ -21,5 +21,12 @@ namespace cas
                                 const std::string& body,
                                 UpstreamResponse& response);
 
+    bool ForwardRequestToXiaomi(const RouteStateSnapshot& routeState,
+                                const std::wstring& method,
+                                const std::wstring& path,
+                                const std::wstring& contentType,
+                                const std::string& body,
+                                UpstreamResponse& response);
+
     std::wstring BuildNamedProxyString(const RouteStateSnapshot& routeState);
 }

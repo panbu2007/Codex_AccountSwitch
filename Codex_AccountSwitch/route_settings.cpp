@@ -21,13 +21,25 @@ namespace cas
         {
             return RouteMode::Ollama;
         }
+        if (lowered == L"xiaomi")
+        {
+            return RouteMode::Xiaomi;
+        }
 
         return RouteMode::Gpt;
     }
 
     std::wstring RouteModeToConfigValue(RouteMode mode)
     {
-        return mode == RouteMode::Ollama ? L"ollama" : L"gpt";
+        if (mode == RouteMode::Ollama)
+        {
+            return L"ollama";
+        }
+        if (mode == RouteMode::Xiaomi)
+        {
+            return L"xiaomi";
+        }
+        return L"gpt";
     }
 
     RouteSettings NormalizeRouteSettings(RouteSettings settings)
@@ -45,6 +57,16 @@ namespace cas
         if (settings.ollamaBaseUrl.empty())
         {
             settings.ollamaBaseUrl = L"http://127.0.0.1:11434";
+        }
+
+        if (settings.xiaomiBaseUrl.empty())
+        {
+            settings.xiaomiBaseUrl = L"https://token-plan-cn.xiaomimimo.com/v1";
+        }
+
+        if (settings.xiaomiModel.empty())
+        {
+            settings.xiaomiModel = L"mimo-v2.5-pro";
         }
 
         if (settings.requestInspectionRetentionLimit < 50)

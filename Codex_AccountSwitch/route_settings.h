@@ -7,7 +7,8 @@ namespace cas
     enum class RouteMode
     {
         Gpt,
-        Ollama
+        Ollama,
+        Xiaomi
     };
 
     struct RouteSettings
@@ -16,6 +17,9 @@ namespace cas
         std::wstring gptProxyHost = L"127.0.0.1";
         int gptProxyPort = 7890;
         std::wstring ollamaBaseUrl = L"http://127.0.0.1:11434";
+        std::wstring xiaomiBaseUrl = L"https://token-plan-cn.xiaomimimo.com/v1";
+        std::wstring xiaomiApiKey;
+        std::wstring xiaomiModel = L"mimo-v2.5-pro";
         bool requestInspectionEnabled = true;
         int requestInspectionRetentionLimit = 400;
     };

@@ -42,6 +42,7 @@ static void TestParseRouteMode()
     Expect(ParseRouteMode(L"gpt") == RouteMode::Gpt, "ParseRouteMode should parse gpt");
     Expect(ParseRouteMode(L"GPT") == RouteMode::Gpt, "ParseRouteMode should be case-insensitive for gpt");
     Expect(ParseRouteMode(L"ollama") == RouteMode::Ollama, "ParseRouteMode should parse ollama");
+    Expect(ParseRouteMode(L"XIAOMI") == RouteMode::Xiaomi, "ParseRouteMode should parse xiaomi case-insensitively");
     Expect(ParseRouteMode(L"unexpected") == RouteMode::Gpt, "ParseRouteMode should default to gpt");
 }
 
@@ -52,6 +53,9 @@ static void TestNormalizeRouteSettings()
     s.gptProxyHost = L"";
     s.gptProxyPort = -1;
     s.ollamaBaseUrl = L"";
+    s.xiaomiBaseUrl = L"";
+    s.xiaomiApiKey = L"test-key";
+    s.xiaomiModel = L"mimo-test";
     s.requestInspectionEnabled = true;
     s.requestInspectionRetentionLimit = 2;
 
@@ -61,13 +65,27 @@ static void TestNormalizeRouteSettings()
     Expect(s.gptProxyHost == L"127.0.0.1", "NormalizeRouteSettings should default GPT proxy host");
     Expect(s.gptProxyPort == 7890, "NormalizeRouteSettings should clamp GPT proxy port");
     Expect(s.ollamaBaseUrl == L"http://127.0.0.1:11434", "NormalizeRouteSettings should default Ollama base URL");
+    Expect(s.xiaomiBaseUrl == L"https://token-plan-cn.xiaomimimo.com/v1", "NormalizeRouteSettings should default Xiaomi base URL");
+    Expect(s.xiaomiApiKey == L"test-key", "NormalizeRouteSettings should preserve Xiaomi API key");
+    Expect(s.xiaomiModel == L"mimo-test", "NormalizeRouteSettings should preserve Xiaomi model");
     Expect(s.requestInspectionRetentionLimit == 50, "NormalizeRouteSettings should enforce minimum retention");
+}
+
+static void TestNormalizeRouteSettingsDefaultsXiaomiModel()
+{
+    RouteSettings s;
+    s.xiaomiModel = L"";
+
+    s = NormalizeRouteSettings(s);
+
+    Expect(s.xiaomiModel == L"mimo-v2.5-pro", "NormalizeRouteSettings should default Xiaomi model");
 }
 
 static void TestRouteModeToConfigValue()
 {
     Expect(RouteModeToConfigValue(RouteMode::Gpt) == L"gpt", "RouteModeToConfigValue should emit gpt");
     Expect(RouteModeToConfigValue(RouteMode::Ollama) == L"ollama", "RouteModeToConfigValue should emit ollama");
+    Expect(RouteModeToConfigValue(RouteMode::Xiaomi) == L"xiaomi", "RouteModeToConfigValue should emit xiaomi");
 }
 
 static void TestMaskHeaderValue()
@@ -109,15 +127,21 @@ static void TestRouteStateTransitions()
     initial.gptProxyHost = L"127.0.0.1";
     initial.gptProxyPort = 7890;
     initial.ollamaBaseUrl = L"http://127.0.0.1:11434";
+    initial.xiaomiBaseUrl = L"https://token-plan-cn.xiaomimimo.com/v1";
+    initial.xiaomiApiKey = L"mimo-key";
+    initial.xiaomiModel = L"mimo-model";
     initial.requestInspectionEnabled = true;
     initial.requestInspectionRetentionLimit = 400;
 
     InitializeRouteState(initial);
-    SetActiveRouteMode(RouteMode::Ollama);
+    SetActiveRouteMode(RouteMode::Xiaomi);
 
     const RouteStateSnapshot snapshot = GetRouteStateSnapshot();
-    Expect(snapshot.routeMode == RouteMode::Ollama, "SetActiveRouteMode should update the active mode");
+    Expect(snapshot.routeMode == RouteMode::Xiaomi, "SetActiveRouteMode should update the active mode");
     Expect(snapshot.gptProxyPort == 7890, "SetActiveRouteMode should preserve other route state values");
+    Expect(snapshot.xiaomiBaseUrl == L"https://token-plan-cn.xiaomimimo.com/v1", "SetActiveRouteMode should preserve Xiaomi base URL");
+    Expect(snapshot.xiaomiApiKey == L"mimo-key", "SetActiveRouteMode should preserve Xiaomi API key");
+    Expect(snapshot.xiaomiModel == L"mimo-model", "SetActiveRouteMode should preserve Xiaomi model");
 }
 
 static void WriteTestFile(const fs::path& path, const std::string& text)
@@ -213,6 +237,7 @@ int main()
     {
         TestParseRouteMode();
         TestNormalizeRouteSettings();
+        TestNormalizeRouteSettingsDefaultsXiaomiModel();
         TestRouteModeToConfigValue();
         TestMaskHeaderValue();
         TestTrimInspectionRecords();

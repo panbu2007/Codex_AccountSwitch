@@ -527,7 +527,6 @@ namespace cas
             const fs::path shadowPath = BuildShadowPath(codexHome, sourcePath);
             if (fs::exists(shadowPath, ec) && !ec)
             {
-                ++result.skipped;
                 HistoryShadowItem item;
                 item.sourcePath = sourcePath;
                 item.sourceId = sourceId;
@@ -535,7 +534,9 @@ namespace cas
                 item.shadowId = shadowId;
                 item.sourceProvider = sourceProvider;
                 item.targetProvider = targetProvider;
+                result.items.push_back(item);
                 manifestItems.push_back(item);
+                ++result.imported;
                 continue;
             }
 

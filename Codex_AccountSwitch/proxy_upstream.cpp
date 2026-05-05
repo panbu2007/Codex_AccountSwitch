@@ -1,6 +1,7 @@
 #include "proxy_upstream.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 #include <windows.h>
 #include <winhttp.h>
@@ -93,11 +94,12 @@ namespace
                            const std::wstring& path,
                            const std::wstring& contentType,
                            const std::string& body,
+                           const std::vector<std::pair<std::wstring, std::wstring>>& extraHeaders,
                            cas::UpstreamResponse& response)
     {
         response = {};
 
-        HINTERNET session = WinHttpOpen(L"CodexAccountSwitch/OllamaProxy",
+        HINTERNET session = WinHttpOpen(L"CodexAccountSwitch/DirectProxy",
                                         WINHTTP_ACCESS_TYPE_NO_PROXY,
                                         WINHTTP_NO_PROXY_NAME,
                                         WINHTTP_NO_PROXY_BYPASS, 0);
@@ -133,9 +135,17 @@ namespace
             L"Content-Type: " +
             (contentType.empty() ? std::wstring(L"application/json") : contentType) +
             L"\r\nAccept: */*\r\nConnection: close\r\n";
+        std::wstring allHeaders = headers;
+        for (const auto& header : extraHeaders)
+        {
+            if (!header.first.empty())
+            {
+                allHeaders += header.first + L": " + header.second + L"\r\n";
+            }
+        }
 
         BOOL ok = WinHttpSendRequest(
-            request, headers.c_str(), static_cast<DWORD>(-1L),
+            request, allHeaders.c_str(), static_cast<DWORD>(-1L),
             body.empty() ? WINHTTP_NO_REQUEST_DATA : const_cast<char*>(body.data()),
             static_cast<DWORD>(body.size()), static_cast<DWORD>(body.size()), 0);
         if (ok)
@@ -215,7 +225,38 @@ namespace cas
             return false;
         }
 
-        return SendSimpleRequest(baseUrl, method, path, contentType, body, response);
+        return SendSimpleRequest(baseUrl, method, path, contentType, body, {},
+                                 response);
+    }
+
+    bool ForwardRequestToXiaomi(const RouteStateSnapshot& routeState,
+                                const std::wstring& method,
+                                const std::wstring& path,
+                                const std::wstring& contentType,
+                                const std::string& body,
+                                UpstreamResponse& response)
+    {
+        if (routeState.xiaomiApiKey.empty())
+        {
+            response = {};
+            response.error = L"xiaomi_api_key_empty";
+            return false;
+        }
+
+        ParsedBaseUrl baseUrl;
+        if (!ParseBaseUrl(routeState.xiaomiBaseUrl, baseUrl))
+        {
+            response = {};
+            response.error = L"xiaomi_base_url_invalid";
+            return false;
+        }
+
+        const std::vector<std::pair<std::wstring, std::wstring>> headers = {
+            {L"api-key", routeState.xiaomiApiKey},
+            {L"Authorization", L"Bearer " + routeState.xiaomiApiKey},
+        };
+        return SendSimpleRequest(baseUrl, method, path, contentType, body,
+                                 headers, response);
     }
 
     std::wstring BuildNamedProxyString(const RouteStateSnapshot& routeState)

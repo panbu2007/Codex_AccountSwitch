@@ -23,6 +23,7 @@ public:
     void Initialize(HWND hwnd);
     void Resize(HWND hwnd) const;
     void Cleanup();
+    void RestoreCodexProfileBeforeExit();
     bool HandleWindowMessage(UINT msg, WPARAM wParam, LPARAM lParam);
     bool ShouldCloseToTray() const { return closeWindowToTray_; }
 
@@ -78,6 +79,7 @@ private:
     bool lowQuotaPromptEnabled_ = true;
     bool closeWindowToTray_ = true;
     bool proxyStealthModeEnabled_ = false;
+    bool exitRestoreAttempted_ = false;
     bool webDavAutoSyncEnabled_ = false;
     bool webDavEnabled_ = false;
     bool cloudAccountAutoDownloadEnabled_ = false;

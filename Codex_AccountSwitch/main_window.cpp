@@ -40,6 +40,7 @@ LRESULT CALLBACK MainWindowProc(HWND hwnd, UINT msg, WPARAM wParam,
       }
     }
     RemovePropW(hwnd, kExitWindowPropName);
+    g_webviewHost.RestoreCodexProfileBeforeExit();
     break;
 
   case WM_GETMINMAXINFO: {
